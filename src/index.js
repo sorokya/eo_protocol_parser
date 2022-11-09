@@ -5,6 +5,7 @@ const { hideBin } = require('yargs/helpers');
 const lexer = require('./lexer');
 const parser = require('./parser');
 const strip = require('./strip');
+const exporters = require('./exporters');
 
 function parseInput(text) {
     const lexingResult = lexer.lex(text);
@@ -27,17 +28,32 @@ yargs(hideBin(process.argv))
       })
   }, (argv) => {
     const {language} = argv;
+
+    console.info('Parsing protocol files... ⏳');
+
     let protocolSource = fs.readFileSync('protocol/eo.txt', {
         encoding: 'utf8'
     });
 
-    // Temporary hacks till protocol is fixed:
-    protocolSource = protocolSource.replace(/Struct/g, 'struct');
-    protocolSource = protocolSource.replace(/map switch/g, 'map_switch');
+    const protocol = parseInput(protocolSource);
+    console.info('Parsing done! ✨');
 
-    const cst = parseInput(protocolSource);
+    const outputDirectory = 'output';
 
-    // TODO: export to language
+    console.info('Generating code... 🤖');
+    switch (language) {
+      case 'rust':
+        exporters.rust(protocol, outputDirectory);
+        break;
+      default:
+        throw new Error(`Unsupported language: ${language}`);
+    }
+  })
+  .option('vult-packets', {
+    description: 'use official packet names from vult-r',
+    alias: 'v',
+    type: 'boolean',
+    default: false
   })
   .parse();
 

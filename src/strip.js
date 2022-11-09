@@ -99,8 +99,8 @@ function stripNormalField(fieldCst) {
     const type = fieldCst.children['FieldDataType'][0]?.image;
     const name = fieldCst.children['FieldName'][0]?.image;
     const enumDataType = fieldCst.children['EnumDataType']?.[0]?.image;
-    const fixedLength = Number(fieldCst.children['FixedLength']?.[0]?.image) || undefined;
-    const arrayLength = Number(fieldCst.children['ArrayLength']?.[0]?.image) || undefined;
+    const fixedLength = Number(fieldCst.children['FixedLength']?.[0]?.image) || fieldCst.children['FixedLength']?.[0]?.image || undefined;
+    const arrayLength = Number(fieldCst.children['ArrayLength']?.[0]?.image) || fieldCst.children['ArrayLength']?.[0]?.image || undefined;
 
     return {
         name,
@@ -123,7 +123,7 @@ function stripStructField(fieldCst) {
     };
 }
 
-function stripBreakField(fieldCst) {
+function stripBreakField() {
     return "BREAK";
 }
 
