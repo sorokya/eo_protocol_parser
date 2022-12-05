@@ -130,7 +130,7 @@ const RSquare = createToken({ name: "RSquare", pattern: /]/ })
 const LParen = createToken({ name: "LParen", pattern: /\(/ })
 const RParen = createToken({ name: "RParen", pattern: /\)/ })
 
-const Identifier = createToken({ name: "Identifier", pattern: /[a-zA-Z]\w*/ })
+const Identifier = createToken({ name: "Identifier", pattern: /[a-zA-Z_]\w*/ })
 
 const BlankLine = createToken({
     name: 'BlankLine',

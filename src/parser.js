@@ -70,8 +70,11 @@ class ProtocolParser extends CstParser {
         });
 
         $.RULE('enumVariant', () => {
-            $.CONSUME(Integer);
-            $.CONSUME(Identifier);
+            $.OR([
+                {ALT: () => $.CONSUME(Identifier, {LABEL: 'EnumVariantValue'})},
+                {ALT: () => $.CONSUME(Integer, {LABEL: 'EnumVariantValue'})},
+            ])
+            $.CONSUME1(Identifier, {LABEL: 'EnumVariantName'});
         });
 
         $.RULE('struct', () => {
@@ -122,6 +125,9 @@ class ProtocolParser extends CstParser {
         });
 
         $.RULE('field', () => {
+            $.OPTION(() => {
+                $.CONSUME(DocComment);
+            });
             $.OR([
                 {ALT: () => $.SUBRULE($.normalField)},
                 {ALT: () => $.SUBRULE($.structField)},

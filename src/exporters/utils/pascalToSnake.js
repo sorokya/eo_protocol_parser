@@ -6,7 +6,7 @@ const DUMB_CONVERSIONS = [
 ];
 
 function pascalToSnake (string) {
-    const result = string.replace(/([A-Z])/g, '_$1').toLowerCase();
+    const result = string.replace(/([A-Z])/g, '_$1').replace(/__/g, '_').toLowerCase();
 
     for (const [from, to] of DUMB_CONVERSIONS) {
         if (result.includes(from)) {

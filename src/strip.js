@@ -12,8 +12,11 @@ function strip(cst) {
         const dataType = enumCst.children['DataType'][0]?.image;
         const variants = {};
         enumCst.children['enumVariant'].forEach(variantCst => {
-            const value = Number(variantCst.children['Integer'][0].image);
-            const variantName = variantCst.children['Identifier'][0].image;
+            let value = variantCst.children['EnumVariantValue'][0].image;
+            if (!isNaN(value)) {
+                value = parseInt(value, 10);
+            }
+            const variantName = variantCst.children['EnumVariantName'][0].image;
             variants[value] = variantName;
         });
         protocol.enums.push({
@@ -101,6 +104,7 @@ function stripNormalField(fieldCst) {
     const enumDataType = fieldCst.children['EnumDataType']?.[0]?.image;
     const fixedLength = Number(fieldCst.children['FixedLength']?.[0]?.image) || fieldCst.children['FixedLength']?.[0]?.image || undefined;
     const arrayLength = Number(fieldCst.children['ArrayLength']?.[0]?.image) || fieldCst.children['ArrayLength']?.[0]?.image || undefined;
+    const isArray = !!fieldCst.children['LSquare'];
 
     return {
         name,
@@ -108,18 +112,22 @@ function stripNormalField(fieldCst) {
         enumDataType,
         fixedLength,
         arrayLength,
+        isArray,
     };
 }
 
 function stripStructField(fieldCst) {
     const struct = fieldCst.children['Identifier'][0]?.image;
     const name = fieldCst.children['Identifier'][1]?.image;
-    const arrayLength = Number(fieldCst.children['ArrayLength']?.[0]?.image) || undefined;
+    const isArray = !!fieldCst.children['LSquare'];
+    const arrayLength = fieldCst.children['ArrayLength']?.[0]?.image || undefined;
 
     return {
+        type: 'struct',
         name,
         struct,
-        arrayLength,
+        isArray,
+        arrayLength: isNaN(arrayLength) ? arrayLength : Number(arrayLength),
     };
 }
 
@@ -128,12 +136,12 @@ function stripBreakField() {
 }
 
 function stripLiteralField(fieldCst) {
-    const dataType = fieldCst.children['DataType'][0]?.image;
+    const type = fieldCst.children['DataType'][0]?.image;
     const value = fieldCst.children['Integer']?.[0]?.image ||
         fieldCst.children['CharacterValue']?.[0]?.image;
 
     return {
-        dataType,
+        type,
         value,
     };
 }
