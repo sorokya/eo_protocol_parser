@@ -255,7 +255,7 @@ class Exporter {
           `${indentation}#[derive(Debug, PartialEq, Eq, Clone)]\npub enum ${structIdentifier}Data {\n`
         );
         for (const unionCase of unionField.cases) {
-          const caseName = removeUnderscores(unionCase.type);
+          const caseName = this.getIdentifierName(unionCase.type);
           this.output.write(`${indentation}    ${caseName}(${structIdentifier}${caseName}),\n`);
         }
         this.output.write(`${indentation}}\n\n`);
@@ -664,7 +664,7 @@ class Exporter {
         for (const union of unions) {
           for (const unionCase of union.cases) {
             this.exportStruct({
-                name: `${name}${unionCase.type}`,
+                name: `${name}${this.getIdentifierName(unionCase.type)}`,
                 fields: unionCase.fields,
               },
               indents
