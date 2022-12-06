@@ -6,7 +6,7 @@ async function resetOutputDirectory(outputDirectory, language) {
     }
 
     if (fs.existsSync(`${outputDirectory}/${language}`)) {
-        await fs.promises.rmdir(`${outputDirectory}/${language}`, { recursive: true });
+        await fs.promises.rm(`${outputDirectory}/${language}`, { recursive: true });
     }
 
     await fs.promises.mkdir(`${outputDirectory}/${language}`);
