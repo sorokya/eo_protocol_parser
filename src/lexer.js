@@ -58,34 +58,19 @@ const Union = createToken({
     pattern: /union/,
 });
 
-const Function = createToken({
-    name: 'Function',
-    pattern: /fn/,
+const Colon = createToken({
+    name: 'Colon',
+    pattern: /:/,
 });
 
-const Static = createToken({
-    name: 'Static',
-    pattern: /static/,
+const ServerPacket = createToken({
+    name: 'ServerPacket',
+    pattern: /server_packet/,
 });
 
-const Const = createToken({
-    name: 'Const',
-    pattern: /const/,
-});
-
-const Return = createToken({
-    name: 'Return',
-    pattern: /return/,
-});
-
-const Multiply = createToken({
-    name: 'Multiply',
-    pattern: /\*/,
-});
-
-const Divide = createToken({
-    name: 'Divide',
-    pattern: /\//,
+const ClientPacket = createToken({
+    name: 'ClientPacket',
+    pattern: /client_packet/,
 });
 
 const Add = createToken({
@@ -98,29 +83,9 @@ const Subtract = createToken({
     pattern: /\-/,
 });
 
-const Modulo = createToken({
-    name: 'Modulo',
-    pattern: /%/,
-});
-
-const Colon = createToken({
-    name: 'Colon',
-    pattern: /:/,
-});
-
-const SemiColon = createToken({
-    name: 'SemiColon',
-    pattern: /;/,
-});
-
-const ServerPacket = createToken({
-    name: 'ServerPacket',
-    pattern: /server_packet/,
-});
-
-const ClientPacket = createToken({
-    name: 'ClientPacket',
-    pattern: /client_packet/,
+const SubString = createToken({
+    name: 'SubString',
+    pattern: /sub_string/,
 });
 
 const LCurly = createToken({ name: "LCurly", pattern: /{/ })
@@ -149,6 +114,7 @@ const allTokens = [
     Comment,
     Integer,
     DataType,
+    Equals,
     Break,
     Comma,
     LCurly,
@@ -157,24 +123,16 @@ const allTokens = [
     RSquare,
     LParen,
     RParen,
+    Add,
+    Subtract,
+    SubString,
     ServerPacket,
     ClientPacket,
     Enum,
     Struct,
     Union,
-    Function,
-    Static,
-    Const,
-    Return,
-    Multiply,
-    Divide,
-    Add,
-    Subtract,
-    Modulo,
-    Equals,
     CharacterValue,
     Colon,
-    SemiColon,
     Identifier,
     BlankLine,
     EverythingElse,

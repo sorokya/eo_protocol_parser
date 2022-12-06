@@ -49,14 +49,21 @@ const reserved = [
 ];
 
 class Exporter {
-  constructor({ protocol, outputDirectory, crateName = "eo" }) {
+  constructor({ protocol, pub, outputDirectory, crateName = "eo" }) {
     this.protocol = protocol;
+    this.pub = pub;
     this.outputDirectory = outputDirectory;
     this.crateName = crateName === "eo" ? "crate" : "eo";
   }
 
-  async export() {
-    await resetOutputDirectory(this.outputDirectory, "rust");
+  export() {
+    resetOutputDirectory(this.outputDirectory, "rust");
+    this.exportProtocol();
+    this.exportPub();
+  }
+
+  exportProtocol() {
+    this.outputType = "protocol";
     this.output = fs.createWriteStream(
       `${this.outputDirectory}/rust/protocol.rs`,
       {
@@ -75,10 +82,33 @@ class Exporter {
     this.exportStructs();
     this.exportPackets();
     this.appendWarning();
+    this.output.close();
+  }
+
+  exportPub() {
+    this.outputType = "pub";
+    this.output = fs.createWriteStream(
+      `${this.outputDirectory}/rust/pubs.rs`,
+      {
+        encoding: "utf8",
+      }
+    );
+    this.appendWarning();
+    this.output.write("\n");
+
+    this.output.write("use log::warn;\n");
+    this.output.write(
+      `use ${this.crateName}::data::{EO_BREAK_CHAR, EOByte, EOChar, EOThree, EOInt, EOShort, Serializeable, StreamReader, StreamBuilder};\n`
+    );
+    this.output.write(`use crate::protocol::*;\n\n`)
+
+    this.exportEnums();
+    this.exportStructs();
+    this.output.close();
   }
 
   exportEnums() {
-    for (const { comment, name, dataType, variants } of this.protocol.enums) {
+    for (const { comment, name, dataType, variants } of this[this.outputType].enums) {
       const size = getPrimitiveSize(dataType);
       const enumIdentifier = this.getIdentifierName(name);
 
@@ -163,7 +193,7 @@ class Exporter {
       this.output.write(`        }\n`);
       this.output.write(`    }\n`);
       this.output.write(`}\n\n`);
-      this.output.write(`impl Default for ${name} {\n`);
+      this.output.write(`impl Default for ${enumIdentifier} {\n`);
       this.output.write(`    fn default() -> Self {\n`);
       this.output.write(
         `        ${enumIdentifier}::${removeUnderscores(
@@ -176,7 +206,7 @@ class Exporter {
   }
 
   exportStructs() {
-    for (const struct of this.protocol.structs) {
+    for (const struct of this[this.outputType].structs) {
       this.exportStruct(struct);
     }
   }
@@ -253,12 +283,20 @@ class Exporter {
       });
 
       for (const field of typesWithoutBreaks) {
-        const { name, type, isArray, arrayLength, comment } = field;
+        const { name: originalName, type, isArray, arrayLength, comment } = field;
+        const name = !!originalName ? this.getVariableName(originalName) : '';
 
         const typeName =
           type === "struct"
-            ? removeUnderscores(field.struct)
+            ? this.getIdentifierName(field.struct)
             : this.getTypeName(type);
+
+          const isEnum =
+            field !== "BREAK" &&
+            !isPrimitive(type) &&
+            type !== "struct" &&
+            type !== "union" &&
+            type !== "sub_string";
 
         if (comment) {
           this.printDocComment(comment, indents + 1);
@@ -276,6 +314,9 @@ class Exporter {
             this.output.write(`${indentation}    pub data: ${structIdentifier}Data,\n`);
           case !name:
             continue;
+          case isEnum:
+            this.output.write(`${indentation}    pub ${name}: ${this.getIdentifierName(type)},\n`);
+            break;
           default:
             this.output.write(`${indentation}    pub ${name}: ${typeName},\n`);
             break;
@@ -296,15 +337,17 @@ class Exporter {
 
     if (fields && fields.length > 0) {
       for (const field of fields) {
-        const { name, type, fixedLength, isArray, arrayLength, value } = field;
+        const { name: originalName, type, fixedLength, fixedLengthOperator, fixedLengthOffset, isArray, arrayLength, value } = field;
+
+        const name = originalName ? this.getVariableName(originalName) : '';
 
         const isEnum =
           field !== "BREAK" &&
           !isPrimitive(type) &&
           type !== "struct" &&
           type !== "union" &&
-          type !== "function";
-        const matchingEnum = isEnum && this.protocol.enums.find((e) => e.name === type);
+          type !== "sub_string";
+        const matchingEnum = isEnum && this[this.outputType].enums.find((e) => e.name === type);
         if (isEnum && !matchingEnum) {
           throw new Error(`Could not find matching enum: ${type}`);
         }
@@ -341,7 +384,7 @@ class Exporter {
                   break;
                 case type === "struct":
                   this.output.write(
-                    `${indentation}          let mut ${pascalToSnake(
+                    `${indentation}          let mut ${this.getVariableName(
                       field.struct
                     )} = ${removeUnderscores(field.struct)}::new();\n`
                   );
@@ -377,9 +420,9 @@ class Exporter {
                   break;
                 case type === "struct":
                   this.output.write(
-                    `${indentation}          let mut ${pascalToSnake(
+                    `${indentation}          let mut ${this.getVariableName(
                       field.struct
-                    )} = ${removeUnderscores(field.struct)}::new();\n`
+                    )} = ${this.getIdentifierName(field.struct)}::new();\n`
                   );
                   this.output.write(
                     `${indentation}          ${pascalToSnake(
@@ -406,21 +449,35 @@ class Exporter {
             break;
           case isEnum:
             this.output.write(
-              `${indentation}        self.${name} = ${type}::from_${matchingEnum.dataType}(reader.get_${matchingEnum.dataType}());\n`
+              `${indentation}        self.${name} = ${this.getIdentifierName(type)}::from_${matchingEnum.dataType}(reader.get_${matchingEnum.dataType}());\n`
             );
             break;
           case type === "string":
             this.output.write(`${indentation}        self.${name} = reader.get_break_string();\n`);
             break;
+          case type === "prefix_string":
+            this.output.write(`${indentation}        self.${name} = reader.get_prefix_string();\n`);
+            break;
           case type === "raw_string":
             if (fixedLength) {
               this.output.write(
                 `${indentation}        self.${name} = reader.get_fixed_string(${
-                  typeof fixedLength === "string"
+                  isNaN(fixedLength)
                     ? `self.${fixedLength}`
                     : fixedLength
-                } as usize);\n`
+                } as usize`
               );
+
+              if (fixedLengthOperator) {
+                this.output.write(` ${fixedLengthOperator} `);
+                if (isNaN(fixedLengthOffset)) {
+                  this.output.write(`self.${fixedLengthOffset} as usize`);
+                } else {
+                  this.output.write(`${fixedLengthOffset}`);
+                }
+              }
+
+              this.output.write(');\n');
             } else {
               this.output.write(`${indentation}        self.${name} = reader.get_end_string();\n`);
             }
@@ -462,6 +519,19 @@ class Exporter {
             this.output.write(`${indentation}            _ => {}\n`);
             this.output.write(`${indentation}        }\n`);
             break;
+          case type === "sub_string":
+            const {string, start, length} = field;
+            const skip = isNaN(start) ? `self.${start} as usize` : start;
+            const take = isNaN(length) ? `self.${length} as usize` : length;
+            this.output.write(`${indentation}        self.${name} = self.${string}.chars()`);
+            if (skip) {
+              this.output.write(`.skip(${skip})`);
+            }
+            if (length) {
+              this.output.write(`.take(${take})`);
+            }
+            this.output.write(`.collect();\n`);
+            break;
           default:
             this.output.write(`${indentation}        self.${name} = reader.get_${type}();\n`);
             break;
@@ -476,15 +546,16 @@ class Exporter {
 
     if (fields && fields.length > 0) {
       for (const field of fields) {
-        const { name, type, fixedLength, isArray, value } = field;
+        const { name: originalName, type, fixedLength, isArray, value } = field;
+        const name = originalName ? this.getVariableName(originalName) : originalName;
 
         const isEnum =
           field !== "BREAK" &&
           !isPrimitive(type) &&
           type !== "struct" &&
           type !== "union" &&
-          type !== "function";
-        const matchingEnum = isEnum && this.protocol.enums.find((e) => e.name === type);
+          type !== "sub_string";
+        const matchingEnum = isEnum && this[this.outputType].enums.find((e) => e.name === type);
         if (isEnum && !matchingEnum) {
           throw new Error(`Could not find matching enum: ${type}`);
         }
@@ -497,6 +568,9 @@ class Exporter {
                 this.output.write(
                   `${indentation}          builder.add_break_string(&self.${name}[i]);\n`
                 );
+                break;
+              case type === "prefix_string":
+                this.output.write(`${indentation}          builder.add_prefix_string(&self.${name}[i]);\n`);
                 break;
               case type === "struct":
                 this.output.write(
@@ -525,6 +599,9 @@ class Exporter {
             break;
           case type === "string":
             this.output.write(`${indentation}        builder.add_break_string(&self.${name});\n`);
+            break;
+          case type === "prefix_string":
+            this.output.write(`${indentation}        builder.add_prefix_string(&self.${name});\n`);
             break;
           case type === "raw_string":
             if (fixedLength) {
@@ -564,6 +641,9 @@ class Exporter {
             // default do nothing
             this.output.write(`${indentation}            _ => {}\n`);
             this.output.write(`${indentation}        }\n`);
+            break;
+          case type === "sub_string":
+            // no-op
             break;
           default:
             this.output.write(`${indentation}        builder.add_${type}(self.${name});\n`);
@@ -611,11 +691,16 @@ class Exporter {
   }
 
   getIdentifierName(name) {
-    return removeUnderscores(name);
+    const identifierName = removeUnderscores(name);
+    if (reserved.includes(identifierName)) {
+      return `r#${identifierName}`;
+    }
+    return identifierName;
   }
 
   getVariableName(name) {
-    const variableName = pascalToSnake(removeUnderscores(name));
+    const variableAlreadySnakeCase = name === name.toLowerCase();
+    const variableName = variableAlreadySnakeCase ? name : pascalToSnake(removeUnderscores(name));
     if (reserved.includes(variableName)) {
       return `r#${variableName}`;
     }
@@ -636,6 +721,8 @@ class Exporter {
         return "EOInt";
       case "string":
       case "raw_string":
+      case "sub_string":
+      case "prefix_string":
         return "String";
       default:
         return type;

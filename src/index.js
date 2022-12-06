@@ -36,12 +36,19 @@ yargs(hideBin(process.argv))
     });
 
     const protocol = parseInput(protocolSource);
+
+    let pubSource = fs.readFileSync('protocol/pub.txt', {
+        encoding: 'utf8'
+    });
+
+    const pub = parseInput(pubSource);
+
     console.info('Parsing done! ✨');
 
     const outputDirectory = 'output';
 
     console.info('Generating code... 🤖');
-    exportCode({language, protocol, outputDirectory}).then(() => {
+    exportCode({language, protocol, pub, outputDirectory}).then(() => {
       console.info('Done! 🎉');
     });
   })
@@ -53,11 +60,12 @@ yargs(hideBin(process.argv))
   })
   .parse();
 
-  async function exportCode({language, protocol, outputDirectory}) {
+  async function exportCode({language, protocol, pub, outputDirectory}) {
     switch (language) {
       case 'rust':
         const rustExporter = new RustExporter({
           protocol,
+          pub,
           outputDirectory,
         });
         await rustExporter.export();

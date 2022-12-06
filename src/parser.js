@@ -6,6 +6,7 @@ const [
     Comment,
     Integer,
     DataType,
+    Equals,
     Break,
     Comma,
     LCurly,
@@ -14,24 +15,16 @@ const [
     RSquare,
     LParen,
     RParen,
+    Add,
+    Subtract,
+    SubString,
     ServerPacket,
     ClientPacket,
     Enum,
     Struct,
     Union,
-    Function,
-    Static,
-    Const,
-    Return,
-    Multiply,
-    Divide,
-    Add,
-    Subtract,
-    Modulo,
-    Equals,
     CharacterValue,
     Colon,
-    SemiColon,
     Identifier,
     BlankLine,
     EverythingElse,
@@ -134,7 +127,7 @@ class ProtocolParser extends CstParser {
                 {ALT: () => $.SUBRULE($.breakField)},
                 {ALT: () => $.SUBRULE($.literalField)},
                 {ALT: () => $.SUBRULE($.union)},
-                {ALT: () => $.SUBRULE($.function)},
+                {ALT: () => $.SUBRULE($.subString)},
             ]);
         })
 
@@ -153,16 +146,24 @@ class ProtocolParser extends CstParser {
             // Fixed length
             $.OPTION1(() => {
                 $.CONSUME(LParen);
+                $.OR1([
+                    {ALT: () => $.CONSUME(Integer, {LABEL: 'FixedLength'})},
+                    {ALT: () => $.CONSUME1(Identifier, {LABEL: 'FixedLength'})},
+                ]);
                 $.OPTION2(() => {
-                    $.OR1([
-                        {ALT: () => $.CONSUME(Integer, {LABEL: 'FixedLength'})},
-                        {ALT: () => $.CONSUME2(Identifier, {LABEL: 'FixedLength'})},
+                    $.OR2([
+                        {ALT: () => $.CONSUME(Add, {LABEL: 'FixedLengthOperator'})},
+                        {ALT: () => $.CONSUME1(Subtract, {LABEL: 'FixedLengthOperator'})},
+                    ]);
+                    $.OR3([
+                        {ALT: () => $.CONSUME1(Integer, {LABEL: 'FixedLengthOffset'})},
+                        {ALT: () => $.CONSUME2(Identifier, {LABEL: 'FixedLengthOffset'})},
                     ]);
                 });
                 $.CONSUME(RParen);
             })
 
-            $.CONSUME1(Identifier, {LABEL: 'FieldName'});
+            $.CONSUME3(Identifier, {LABEL: 'FieldName'});
 
             // Array
             $.OPTION3(() => {
@@ -170,7 +171,7 @@ class ProtocolParser extends CstParser {
 
                 // Optional length
                 $.OPTION4(() => {
-                    $.CONSUME1(Integer, {LABEL: 'ArrayLength'});
+                    $.CONSUME2(Integer, {LABEL: 'ArrayLength'});
                 });
                 $.CONSUME(RSquare);
             });
@@ -238,108 +239,25 @@ class ProtocolParser extends CstParser {
             $.CONSUME(RCurly);
         });
 
-        $.RULE('function', () => {
-            $.CONSUME(Function);
-
-            // Optional "static"
-            $.OPTION(() => {
-                $.CONSUME(Static);
-            });
-
-            // return type
-            $.OR([
-                {ALT: () => $.CONSUME(DataType, {LABEL: 'ReturnType'})},
-                {ALT: () => $.CONSUME(Identifier, {LABEL: 'ReturnType'})},
-            ])
-
-            // function name
-            $.CONSUME1(Identifier, {LABEL: 'FunctionName'});
-
+        $.RULE('subString', () => {
+            $.CONSUME(SubString);
             $.CONSUME(LParen);
-
-
-            // TODO: handle more than one parameter (comma separated)
-            // Optional parameters
-            $.OPTION1(() => {
-                $.MANY(() => {
-                    $.CONSUME2(Identifier, {LABEL: 'ParameterType'});
-                    $.CONSUME3(Identifier, {LABEL: 'ParameterName'});
-                });
-            });
-
-            $.CONSUME(RParen);
-
-            // Optional "const"
-            $.OPTION2(() => {
-                $.CONSUME(Const);
-            });
-
-            $.CONSUME(LCurly);
-            $.MANY1(() => {
-                $.SUBRULE($.statement);
-            });
-            $.CONSUME(RCurly);
-        });
-
-        $.RULE('statement', () => {
+            $.CONSUME(Identifier, {LABEL: 'String'});
+            $.CONSUME(Comma);
             $.OR([
-                {ALT: () => $.SUBRULE($.return)},
-                {ALT: () => $.SUBRULE($.assignment)},
-                {ALT: () => $.SUBRULE($.increment)},
+                {ALT: () => $.CONSUME(Integer, {LABEL: 'SubStringStart'})},
+                {ALT: () => $.CONSUME1(Identifier, {LABEL: 'SubStringStart'})},
             ]);
-        });
-
-        $.RULE('return', () => {
-            $.CONSUME(Return);
-            $.MANY(() => {
-                $.SUBRULE($.expression);
-            })
-            $.CONSUME(SemiColon);
-        });
-
-        $.RULE('expression', () => {
-            $.OR([
-                {ALT: () => $.CONSUME(Integer)},
-                {ALT: () => $.CONSUME(Add)},
-                {ALT: () => $.CONSUME(Subtract)},
-                {ALT: () => $.CONSUME(Multiply)},
-                {ALT: () => $.CONSUME(Divide)},
-                {ALT: () => $.CONSUME(Modulo)},
-                {ALT: () => $.SUBRULE($.cast)},
-                {ALT: () => $.CONSUME(LParen)},
-                {ALT: () => $.CONSUME(RParen)},
-                {ALT: () => $.CONSUME(LSquare)},
-                {ALT: () => $.CONSUME(RSquare)},
-                {ALT: () => $.CONSUME(DataType)},
-                {ALT: () => $.CONSUME(Identifier)},
-            ]);
-        });
-
-        $.RULE('cast', () => {
-            $.CONSUME(Identifier);
-            $.CONSUME(LParen);
-            $.CONSUME1(Identifier);
-            $.CONSUME(RParen);
-        });
-
-        $.RULE('assignment', () => {
             $.OPTION(() => {
-                $.CONSUME(DataType);
+                $.CONSUME2(Comma);
+                $.OR1([
+                    {ALT: () => $.CONSUME1(Integer, {LABEL: 'SubStringLength'})},
+                    {ALT: () => $.CONSUME2(Identifier, {LABEL: 'SubStringLength'})},
+                ]);
             });
-            $.CONSUME(Identifier);
-            $.CONSUME(Equals);
-            $.MANY(() => {
-                $.SUBRULE($.expression);
-            });
-            $.CONSUME(SemiColon);
-        });
-
-        $.RULE('increment', () => {
-            $.CONSUME(Add);
-            $.CONSUME1(Add);
-            $.CONSUME(Identifier);
-            $.CONSUME(SemiColon);
-        });
+            $.CONSUME(RParen);
+            $.CONSUME3(Identifier, {LABEL: 'FieldName'});
+        })
 
         this.performSelfAnalysis();
     }

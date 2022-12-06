@@ -8,6 +8,7 @@ function isPrimitive(type) {
       "break",
       "string",
       "raw_string",
+      "prefix_string",
     ].includes(type);
 }
 

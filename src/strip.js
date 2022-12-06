@@ -38,30 +38,34 @@ function strip(cst) {
         });
     }
 
-    for (const packetCst of cst.children.clientPacket) {
-        const comment = packetCst.children['DocComment']?.[0]?.image;
-        const family = packetCst.children['Identifier'][0]?.image;
-        const action = packetCst.children['Identifier'][1]?.image;
-        const fields = packetCst.children['field']?.map(stripField);
-        protocol.clientPackets.push({
-            comment: trimComment(comment),
-            family,
-            action,
-            fields,
-        });
+    if (cst.children.clientPacket && cst.children.clientPacket.length > 0) {
+        for (const packetCst of cst.children.clientPacket) {
+            const comment = packetCst.children['DocComment']?.[0]?.image;
+            const family = packetCst.children['Identifier'][0]?.image;
+            const action = packetCst.children['Identifier'][1]?.image;
+            const fields = packetCst.children['field']?.map(stripField);
+            protocol.clientPackets.push({
+                comment: trimComment(comment),
+                family,
+                action,
+                fields,
+            });
+        }
     }
 
-    for (const packetCst of cst.children.serverPacket) {
-        const comment = packetCst.children['DocComment']?.[0]?.image;
-        const family = packetCst.children['Identifier'][0]?.image;
-        const action = packetCst.children['Identifier'][1]?.image;
-        const fields = packetCst.children['field']?.map(stripField);
-        protocol.serverPackets.push({
-            comment: trimComment(comment),
-            family,
-            action,
-            fields,
-        });
+    if (cst.children.serverPacket && cst.children.serverPacket.length > 0) {
+        for (const packetCst of cst.children.serverPacket) {
+            const comment = packetCst.children['DocComment']?.[0]?.image;
+            const family = packetCst.children['Identifier'][0]?.image;
+            const action = packetCst.children['Identifier'][1]?.image;
+            const fields = packetCst.children['field']?.map(stripField);
+            protocol.serverPackets.push({
+                comment: trimComment(comment),
+                family,
+                action,
+                fields,
+            });
+        }
     }
 
     return protocol;
@@ -78,7 +82,7 @@ function stripField (fieldCst) {
     const breakField = fieldCst.children['breakField'];
     const literalField = fieldCst.children['literalField'];
     const union = fieldCst.children['union'];
-    const fn = fieldCst.children['function'];
+    const subString = fieldCst.children['subString'];
 
     switch (true) {
         case !!normalField:
@@ -91,6 +95,8 @@ function stripField (fieldCst) {
             return {...stripLiteralField(literalField[0]), comment};
         case !!union:
             return stripUnion(union[0]);
+        case !!subString:
+            return stripSubString(subString[0]);
         default:
             throw new Error('Unknown field type');
             return undefined;
@@ -103,6 +109,8 @@ function stripNormalField(fieldCst) {
     const enumDataType = fieldCst.children['EnumDataType']?.[0]?.image;
     const fixedLength = Number(fieldCst.children['FixedLength']?.[0]?.image) || fieldCst.children['FixedLength']?.[0]?.image || undefined;
     const arrayLength = Number(fieldCst.children['ArrayLength']?.[0]?.image) || fieldCst.children['ArrayLength']?.[0]?.image || undefined;
+    const fixedLengthOperator = fieldCst.children['FixedLengthOperator']?.[0]?.image;
+    const fixedLengthOffset = Number(fieldCst.children['FixedLengthOffset']?.[0]?.image) || fieldCst.children['FixedLengthOffset']?.[0]?.image || undefined;
     const isArray = !!fieldCst.children['LSquare'];
 
     return {
@@ -110,6 +118,8 @@ function stripNormalField(fieldCst) {
         type,
         enumDataType,
         fixedLength,
+        fixedLengthOperator,
+        fixedLengthOffset,
         arrayLength,
         isArray,
     };
@@ -168,74 +178,19 @@ function stripUnionCase(caseCst) {
     }
 }
 
-function stripFunction(fieldCst) {
-    const returnType = fieldCst.children['ReturnType'][0]?.image;
-    const params = fieldCst.children['ParameterType']?.map((paramCst, index) => {
-        return {
-            type: paramCst.image,
-            name: fieldCst.children['ParameterName'][index].image,
-        }
-    });
-
-    const name = fieldCst.children['FunctionName'][0]?.image;
-    const isStatic = !!fieldCst.children['Static'];
-    const isConst = !!fieldCst.children['Const'];
-
-    const statements = fieldCst.children['statement'].map(stripStatement);
+function stripSubString(fieldCst) {
+    const name = fieldCst.children['FieldName'][0]?.image;
+    const string = fieldCst.children['String']?.[0]?.image;
+    const start = isNaN(fieldCst.children['SubStringStart']?.[0]?.image) ? fieldCst.children['SubStringStart']?.[0]?.image : Number(fieldCst.children['SubStringStart']?.[0]?.image);
+    const length = isNaN(fieldCst.children['SubStringLength']?.[0]?.image) ? fieldCst.children['SubStringLength']?.[0]?.image : Number(fieldCst.children['SubStringLength']?.[0]?.image);
 
     return {
-        type: 'function',
+        type: 'sub_string',
         name,
-        returnType,
-        params,
-        isStatic,
-        isConst,
-        statements,
+        string,
+        start,
+        length,
     }
-}
-
-function stripStatement(statementCst) {
-    const assignment = statementCst.children['assignment'];
-    const returnStatement = statementCst.children['return'];
-    const increment = statementCst.children['increment'];
-
-    if (assignment) {
-        const dataType = assignment[0].children['DataType'][0]?.image;
-        const variable = assignment[0].children['Identifier'][0]?.image;
-        const expressions = assignment[0].children['expression'].map(stripExpression);
-
-        if (dataType) {
-            return `${dataType} ${variable} = ${expressions.join(' ')};`;
-        }
-
-        return `${variable} = ${expressions.join(' ')};`;
-    }
-
-    if (returnStatement) {
-        const expressions = returnStatement[0].children['expression'].map(stripExpression);
-        return `return ${expressions.join(' ')};`;
-    }
-
-    if (increment) {
-        const variable = increment[0].children['Identifier'][0]?.image;
-        return `${variable}++;`;
-    }
-}
-
-function stripExpression(expressionCst) {
-    if (expressionCst.children['cast']) {
-        return stripCast(expressionCst.children['cast'][0]);
-    }
-
-    const keys = Object.keys(expressionCst.children);
-    const value = expressionCst.children[keys[0]][0].image;
-    return value;
-}
-
-function stripCast(castCst) {
-    const dataType = castCst.children['Identifier'][0]?.image;
-    const variable = castCst.children['Identifier'][1]?.image;
-    return `${dataType}(${variable})`;
 }
 
 module.exports = strip;
