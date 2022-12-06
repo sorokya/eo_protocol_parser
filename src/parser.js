@@ -171,7 +171,10 @@ class ProtocolParser extends CstParser {
 
                 // Optional length
                 $.OPTION4(() => {
-                    $.CONSUME2(Integer, {LABEL: 'ArrayLength'});
+                    $.OR4([
+                        {ALT: () => $.CONSUME2(Integer, {LABEL: 'ArrayLength'})},
+                        {ALT: () => $.CONSUME4(Identifier, {LABEL: 'ArrayLength'})},
+                    ]);
                 });
                 $.CONSUME(RSquare);
             });
