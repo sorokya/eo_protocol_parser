@@ -193,7 +193,7 @@ class Exporter {
       const sortedFamilies = Array.from(families).sort((a, b) => a - b);
 
       for (const family of sortedFamilies) {
-        this.output.write(`    pub mod ${family} {\n`);
+        this.output.write(`    pub mod ${family.toLowerCase()} {\n`);
         this.output.write(`        use super::super::*;\n\n`);
         const packets = this.protocol[`${who}Packets`].filter((p) => p.family === family).sort((a, b) => a.action - b.action);
         for (const packet of packets) {
