@@ -2,7 +2,7 @@ const fs = require('fs');
 
 function resetOutputDirectory(outputDirectory, language) {
     if (!fs.existsSync(outputDirectory)) {
-        fs.mkdir(outputDirectory);
+        fs.mkdirSync(outputDirectory);
     }
 
     if (fs.existsSync(`${outputDirectory}/${language}`)) {
