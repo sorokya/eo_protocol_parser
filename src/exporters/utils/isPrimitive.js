@@ -9,6 +9,7 @@ function isPrimitive(type) {
       "string",
       "raw_string",
       "prefix_string",
+      "emf_string",
     ].includes(type);
 }
 

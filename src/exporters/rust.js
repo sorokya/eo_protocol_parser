@@ -482,6 +482,13 @@ class Exporter {
               this.output.write(`${indentation}        self.${name} = reader.get_end_string();\n`);
             }
             break;
+          case type === "emf_string":
+            this.output.write(`${indentation}        self.${name} = reader.get_emf_string(${
+              isNaN(fixedLength)
+                ? `self.${fixedLength}`
+                : fixedLength
+            } as usize);\n`);
+            break;
           case field === "BREAK":
             this.output.write(`${indentation}        reader.get_byte();\n`);
             break;
@@ -572,6 +579,9 @@ class Exporter {
               case type === "prefix_string":
                 this.output.write(`${indentation}          builder.add_prefix_string(&self.${name}[i]);\n`);
                 break;
+              case type === "emf_string":
+                this.output.write(`${indentation}          builder.add_emf_string(&self.${name}[i]);\n`);
+                break;
               case type === "struct":
                 this.output.write(
                   `${indentation}          builder.append(&mut self.${name}[i].serialize());\n`
@@ -602,6 +612,9 @@ class Exporter {
             break;
           case type === "prefix_string":
             this.output.write(`${indentation}        builder.add_prefix_string(&self.${name});\n`);
+            break;
+          case type === "emf_string":
+            this.output.write(`${indentation}        builder.add_emf_string(&self.${name});\n`);
             break;
           case type === "raw_string":
             if (fixedLength) {
@@ -723,6 +736,7 @@ class Exporter {
       case "raw_string":
       case "sub_string":
       case "prefix_string":
+      case "emf_string":
         return "String";
       default:
         return type;
