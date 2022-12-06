@@ -139,7 +139,7 @@ class Exporter {
       const typeName = this.getTypeName(dataType);
       this.output.write(`impl ${enumIdentifier} {\n`);
       this.output.write(
-        `    pub fn from_${dataType}(value: ${typeName}) -> Self {\n`
+        `    pub fn from_${dataType}(value: ${typeName}) -> Option<Self> {\n`
       );
       this.output.write(`        match value {\n`);
 
@@ -151,15 +151,15 @@ class Exporter {
       );
       for (const [enumValue, enumName] of variantsExcludingDefault) {
         this.output.write(
-          `            ${enumValue} => Self::${removeUnderscores(enumName)},\n`
+          `            ${enumValue} => Some(Self::${removeUnderscores(enumName)}),\n`
         );
       }
 
       if (defaultVariant) {
         this.output.write(
-          `            _ => Self::${removeUnderscores(
+          `            _ => Some(Self::${removeUnderscores(
             defaultVariant[1]
-          )}(value),\n`
+          )}(value)),\n`
         );
       } else {
         this.output.write(`            _ => {\n`);
@@ -167,9 +167,7 @@ class Exporter {
           `                warn!("Invalid value for enum ${name}: {}", value);\n`
         );
         this.output.write(
-          `                Self::${removeUnderscores(
-            variantsExcludingDefault[0][1]
-          )}\n`
+          `                None\n`
         );
         this.output.write(`            },\n`);
       }
@@ -449,7 +447,7 @@ class Exporter {
             break;
           case isEnum:
             this.output.write(
-              `${indentation}        self.${name} = ${this.getIdentifierName(type)}::from_${matchingEnum.dataType}(reader.get_${matchingEnum.dataType}());\n`
+              `${indentation}        self.${name} = ${this.getIdentifierName(type)}::from_${matchingEnum.dataType}(reader.get_${matchingEnum.dataType}()).unwrap_or_default();\n`
             );
             break;
           case type === "string":
