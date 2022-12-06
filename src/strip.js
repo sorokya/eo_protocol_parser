@@ -72,6 +72,7 @@ function trimComment(comment) {
 }
 
 function stripField (fieldCst) {
+    const comment = fieldCst.children['DocComment']?.[0]?.image;
     const normalField = fieldCst.children['normalField'];
     const structField = fieldCst.children['structField'];
     const breakField = fieldCst.children['breakField'];
@@ -81,20 +82,18 @@ function stripField (fieldCst) {
 
     switch (true) {
         case !!normalField:
-            return stripNormalField(normalField[0]);
+            return {...stripNormalField(normalField[0]), comment};
         case !!structField:
-            return stripStructField(structField[0]);
+            return {...stripStructField(structField[0]), comment};
         case !!breakField:
             return stripBreakField(breakField[0]);
         case !!literalField:
-            return stripLiteralField(literalField[0]);
+            return {...stripLiteralField(literalField[0]), comment};
         case !!union:
             return stripUnion(union[0]);
-        case !!fn:
-            return stripFunction(fn[0]);
         default:
-            return undefined;
             throw new Error('Unknown field type');
+            return undefined;
     }
 }
 

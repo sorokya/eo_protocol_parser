@@ -5,7 +5,7 @@ const { hideBin } = require('yargs/helpers');
 const lexer = require('./lexer');
 const parser = require('./parser');
 const strip = require('./strip');
-const exporters = require('./exporters');
+const {RustExporter} = require('./exporters');
 
 function parseInput(text) {
     const lexingResult = lexer.lex(text);
@@ -41,13 +41,9 @@ yargs(hideBin(process.argv))
     const outputDirectory = 'output';
 
     console.info('Generating code... 🤖');
-    switch (language) {
-      case 'rust':
-        exporters.rust(protocol, outputDirectory);
-        break;
-      default:
-        throw new Error(`Unsupported language: ${language}`);
-    }
+    exportCode({language, protocol, outputDirectory}).then(() => {
+      console.info('Done! 🎉');
+    });
   })
   .option('vult-packets', {
     description: 'use official packet names from vult-r',
@@ -56,6 +52,20 @@ yargs(hideBin(process.argv))
     default: false
   })
   .parse();
+
+  async function exportCode({language, protocol, outputDirectory}) {
+    switch (language) {
+      case 'rust':
+        const rustExporter = new RustExporter({
+          protocol,
+          outputDirectory,
+        });
+        await rustExporter.export();
+        break;
+      default:
+        throw new Error(`Unsupported language: ${language}`);
+    }
+  }
 
 
 

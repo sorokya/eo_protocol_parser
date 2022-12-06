@@ -1,5 +1,5 @@
-const rust = require('./rust');
+const {Exporter: RustExporter} = require('./rust');
 
 module.exports = {
-    rust,
+    RustExporter,
 };

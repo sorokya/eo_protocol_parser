@@ -1,15 +1,15 @@
 const fs = require('fs');
 
-function resetOutputDirectory(outputDirectory, language) {
+async function resetOutputDirectory(outputDirectory, language) {
     if (!fs.existsSync(outputDirectory)) {
-        fs.mkdirSync(outputDirectory);
+        await fs.promises.mkdir(outputDirectory);
     }
 
     if (fs.existsSync(`${outputDirectory}/${language}`)) {
-        fs.rmdirSync(`${outputDirectory}/${language}`, { recursive: true });
+        await fs.promises.rmdir(`${outputDirectory}/${language}`, { recursive: true });
     }
 
-    fs.mkdirSync(`${outputDirectory}/${language}`);
+    await fs.promises.mkdir(`${outputDirectory}/${language}`);
 }
 
 module.exports = resetOutputDirectory;
