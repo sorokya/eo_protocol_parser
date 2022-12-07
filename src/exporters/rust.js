@@ -3,7 +3,6 @@ const {
   getPrimitiveSize,
   isPrimitive,
   pascalToSnake,
-  resetOutputDirectory,
   removeUnderscores,
 } = require("./utils");
 
@@ -49,32 +48,28 @@ const reserved = [
 ];
 
 class Exporter {
-  constructor({ protocol, pub, outputDirectory, crateName = "eo" }) {
+  constructor({ protocol, pub, crateName = "eo" }) {
     this.protocol = protocol;
     this.pub = pub;
-    this.outputDirectory = outputDirectory;
     this.crateName = crateName === "eo" ? "crate" : "eo";
+    this.pubOutput = '';
+    this.protocolOutput = '';
   }
 
   export() {
-    resetOutputDirectory(this.outputDirectory, "rust");
     this.exportProtocol();
     this.exportPub();
+
+    return {pub: this.pubOutput, protocol: this.protocolOutput};
   }
 
   exportProtocol() {
     this.outputType = "protocol";
-    this.output = fs.createWriteStream(
-      `${this.outputDirectory}/rust/protocol.rs`,
-      {
-        encoding: "utf8",
-      }
-    );
     this.appendWarning();
-    this.output.write("\n");
+    this.append("\n");
 
-    this.output.write("use log::warn;\n");
-    this.output.write(
+    this.append("use log::warn;\n");
+    this.append(
       `use ${this.crateName}::data::{EO_BREAK_CHAR, EOByte, EOChar, EOThree, EOInt, EOShort, Serializeable, StreamReader, StreamBuilder};\n\n`
     );
 
@@ -82,66 +77,62 @@ class Exporter {
     this.exportStructs();
     this.exportPackets();
     this.appendWarning();
-    this.output.close();
   }
 
   exportPub() {
+    this.output = "";
     this.outputType = "pub";
-    this.output = fs.createWriteStream(
-      `${this.outputDirectory}/rust/pubs.rs`,
-      {
-        encoding: "utf8",
-      }
-    );
     this.appendWarning();
-    this.output.write("\n");
+    this.append("\n");
 
-    this.output.write("use log::warn;\n");
-    this.output.write(
+    this.append("use log::warn;\n");
+    this.append(
       `use ${this.crateName}::data::{EO_BREAK_CHAR, EOByte, EOChar, EOThree, EOInt, EOShort, Serializeable, StreamReader, StreamBuilder};\n`
     );
-    this.output.write(`use crate::protocol::*;\n\n`)
+    this.append(`use crate::protocol::*;\n\n`);
 
     this.exportEnums();
     this.exportStructs();
-    this.output.close();
   }
 
   exportEnums() {
-    for (const { comment, name, dataType, variants } of this[this.outputType].enums) {
+    for (const { comment, name, dataType, variants } of this[this.outputType]
+      .enums) {
       const size = getPrimitiveSize(dataType);
       const enumIdentifier = this.getIdentifierName(name);
 
-      this.output.write(
-        `pub const ${pascalToSnake(enumIdentifier).toUpperCase()}_SIZE: usize = ${size};\n\n`
+      this.append(
+        `pub const ${pascalToSnake(
+          enumIdentifier
+        ).toUpperCase()}_SIZE: usize = ${size};\n\n`
       );
 
       if (comment) {
         this.printDocComment(comment);
       }
 
-      this.output.write(`#[derive(Debug, Clone, Copy, PartialEq, Eq)]\n`);
-      this.output.write(`pub enum ${enumIdentifier} {\n`);
+      this.append(`#[derive(Debug, Clone, Copy, PartialEq, Eq)]\n`);
+      this.append(`pub enum ${enumIdentifier} {\n`);
 
       for (const [enumValue, enumName] of Object.entries(variants)) {
         const variantIdentifier = this.getIdentifierName(enumName);
         const variantType = this.getTypeName(dataType);
 
         if (enumValue === "_") {
-          this.output.write(`    ${variantIdentifier}(${variantType}),\n`);
+          this.append(`    ${variantIdentifier}(${variantType}),\n`);
         } else {
-          this.output.write(`    ${variantIdentifier},\n`);
+          this.append(`    ${variantIdentifier},\n`);
         }
       }
 
-      this.output.write(`}\n\n`);
+      this.append(`}\n\n`);
 
       const typeName = this.getTypeName(dataType);
-      this.output.write(`impl ${enumIdentifier} {\n`);
-      this.output.write(
+      this.append(`impl ${enumIdentifier} {\n`);
+      this.append(
         `    pub fn from_${dataType}(value: ${typeName}) -> Option<Self> {\n`
       );
-      this.output.write(`        match value {\n`);
+      this.append(`        match value {\n`);
 
       const variantsExcludingDefault = Object.entries(variants).filter(
         ([value, _]) => value !== "_"
@@ -150,56 +141,56 @@ class Exporter {
         ([value, _]) => value === "_"
       );
       for (const [enumValue, enumName] of variantsExcludingDefault) {
-        this.output.write(
-          `            ${enumValue} => Some(Self::${removeUnderscores(enumName)}),\n`
+        this.append(
+          `            ${enumValue} => Some(Self::${removeUnderscores(
+            enumName
+          )}),\n`
         );
       }
 
       if (defaultVariant) {
-        this.output.write(
+        this.append(
           `            _ => Some(Self::${removeUnderscores(
             defaultVariant[1]
           )}(value)),\n`
         );
       } else {
-        this.output.write(`            _ => {\n`);
-        this.output.write(
+        this.append(`            _ => {\n`);
+        this.append(
           `                warn!("Invalid value for enum ${name}: {}", value);\n`
         );
-        this.output.write(
-          `                None\n`
-        );
-        this.output.write(`            },\n`);
+        this.append(`                None\n`);
+        this.append(`            },\n`);
       }
 
-      this.output.write(`        }\n`);
-      this.output.write(`    }\n\n`);
-      this.output.write(`   pub fn to_${dataType}(self) -> ${typeName} {\n`);
-      this.output.write(`        match self {\n`);
+      this.append(`        }\n`);
+      this.append(`    }\n\n`);
+      this.append(`   pub fn to_${dataType}(self) -> ${typeName} {\n`);
+      this.append(`        match self {\n`);
       for (const [enumValue, enumName] of variantsExcludingDefault) {
-        this.output.write(
+        this.append(
           `            Self::${removeUnderscores(enumName)} => ${enumValue},\n`
         );
       }
       if (defaultVariant) {
-        this.output.write(
+        this.append(
           `            Self::${removeUnderscores(
             defaultVariant[1]
           )}(value) => value,\n`
         );
       }
-      this.output.write(`        }\n`);
-      this.output.write(`    }\n`);
-      this.output.write(`}\n\n`);
-      this.output.write(`impl Default for ${enumIdentifier} {\n`);
-      this.output.write(`    fn default() -> Self {\n`);
-      this.output.write(
+      this.append(`        }\n`);
+      this.append(`    }\n`);
+      this.append(`}\n\n`);
+      this.append(`impl Default for ${enumIdentifier} {\n`);
+      this.append(`    fn default() -> Self {\n`);
+      this.append(
         `        ${enumIdentifier}::${removeUnderscores(
           Object.entries(variants)[0][1]
         )}\n`
       );
-      this.output.write(`    }\n`);
-      this.output.write(`}\n\n`);
+      this.append(`    }\n`);
+      this.append(`}\n\n`);
     }
   }
 
@@ -211,8 +202,8 @@ class Exporter {
 
   exportPackets() {
     for (const who of ["client", "server"]) {
-      this.output.write(`pub mod ${who} {\n`);
-      this.output.write(`    use super::*;\n\n`);
+      this.append(`pub mod ${who} {\n`);
+      this.append(`    use super::*;\n\n`);
 
       const families = new Set();
       for (const packet of this.protocol[`${who}Packets`]) {
@@ -221,19 +212,24 @@ class Exporter {
       const sortedFamilies = Array.from(families).sort((a, b) => a - b);
 
       for (const family of sortedFamilies) {
-        this.output.write(`    pub mod ${family.toLowerCase()} {\n`);
-        this.output.write(`        use super::super::*;\n\n`);
-        const packets = this.protocol[`${who}Packets`].filter((p) => p.family === family).sort((a, b) => a.action - b.action);
+        this.append(`    pub mod ${family.toLowerCase()} {\n`);
+        this.append(`        use super::super::*;\n\n`);
+        const packets = this.protocol[`${who}Packets`]
+          .filter((p) => p.family === family)
+          .sort((a, b) => a.action - b.action);
         for (const packet of packets) {
-          this.exportStruct({
-            ...packet,
-            name: packet.action,
-          }, 2);
+          this.exportStruct(
+            {
+              ...packet,
+              name: packet.action,
+            },
+            2
+          );
         }
-        this.output.write('    }\n\n')
+        this.append("    }\n\n");
       }
 
-      this.output.write('}\n\n');
+      this.append("}\n\n");
     }
   }
 
@@ -249,31 +245,37 @@ class Exporter {
     const unionFields = fields?.filter((f) => f.type === "union");
     if (unionFields) {
       for (const unionField of unionFields) {
-        this.output.write(
+        this.append(
           `${indentation}#[derive(Debug, PartialEq, Eq, Clone)]\npub enum ${structIdentifier}Data {\n`
         );
         for (const unionCase of unionField.cases) {
           const caseName = this.getIdentifierName(unionCase.type);
-          this.output.write(`${indentation}    ${caseName}(${structIdentifier}${caseName}),\n`);
+          this.append(
+            `${indentation}    ${caseName}(${structIdentifier}${caseName}),\n`
+          );
         }
-        this.output.write(`${indentation}}\n\n`);
+        this.append(`${indentation}}\n\n`);
 
-        this.output.write(`${indentation}impl Default for ${structIdentifier}Data {\n`);
-        this.output.write(`${indentation}    fn default() -> Self {\n`);
-        this.output.write(
+        this.append(
+          `${indentation}impl Default for ${structIdentifier}Data {\n`
+        );
+        this.append(`${indentation}    fn default() -> Self {\n`);
+        this.append(
           `${indentation}        Self::${removeUnderscores(
             unionField.cases[0].type
           )}(${name}${removeUnderscores(
             unionField.cases[0].type
           )}::default())\n`
         );
-        this.output.write(`${indentation}    }\n`);
-        this.output.write(`${indentation}}\n\n`);
+        this.append(`${indentation}    }\n`);
+        this.append(`${indentation}}\n\n`);
       }
     }
 
-    this.output.write(`${indentation}#[derive(Debug, Default, Clone, PartialEq, Eq)]\n`);
-    this.output.write(`${indentation}pub struct ${structIdentifier} {\n`);
+    this.append(
+      `${indentation}#[derive(Debug, Default, Clone, PartialEq, Eq)]\n`
+    );
+    this.append(`${indentation}pub struct ${structIdentifier} {\n`);
 
     if (fields && fields.length > 0) {
       const typesWithoutBreaks = fields.filter((field) => {
@@ -281,20 +283,26 @@ class Exporter {
       });
 
       for (const field of typesWithoutBreaks) {
-        const { name: originalName, type, isArray, arrayLength, comment } = field;
-        const name = !!originalName ? this.getVariableName(originalName) : '';
+        const {
+          name: originalName,
+          type,
+          isArray,
+          arrayLength,
+          comment,
+        } = field;
+        const name = !!originalName ? this.getVariableName(originalName) : "";
 
         const typeName =
           type === "struct"
             ? this.getIdentifierName(field.struct)
             : this.getTypeName(type);
 
-          const isEnum =
-            field !== "BREAK" &&
-            !isPrimitive(type) &&
-            type !== "struct" &&
-            type !== "union" &&
-            type !== "sub_string";
+        const isEnum =
+          field !== "BREAK" &&
+          !isPrimitive(type) &&
+          type !== "struct" &&
+          type !== "union" &&
+          type !== "sub_string";
 
         if (comment) {
           this.printDocComment(comment, indents + 1);
@@ -303,41 +311,60 @@ class Exporter {
         switch (true) {
           case isArray:
             if (typeof arrayLength === "number") {
-              this.output.write(`${indentation}    pub ${name}: [${typeName}; ${arrayLength}],\n`);
+              this.append(
+                `${indentation}    pub ${name}: [${typeName}; ${arrayLength}],\n`
+              );
             } else {
-              this.output.write(`${indentation}    pub ${name}: Vec<${typeName}>,\n`);
+              this.append(`${indentation}    pub ${name}: Vec<${typeName}>,\n`);
             }
             break;
           case type === "union":
-            this.output.write(`${indentation}    pub data: ${structIdentifier}Data,\n`);
+            this.append(
+              `${indentation}    pub data: ${structIdentifier}Data,\n`
+            );
           case !name:
             continue;
           case isEnum:
-            this.output.write(`${indentation}    pub ${name}: ${this.getIdentifierName(type)},\n`);
+            this.append(
+              `${indentation}    pub ${name}: ${this.getIdentifierName(
+                type
+              )},\n`
+            );
             break;
           default:
-            this.output.write(`${indentation}    pub ${name}: ${typeName},\n`);
+            this.append(`${indentation}    pub ${name}: ${typeName},\n`);
             break;
         }
       }
     }
 
-    this.output.write(`${indentation}}\n\n`);
+    this.append(`${indentation}}\n\n`);
 
-    this.output.write(`${indentation}impl ${structIdentifier} {\n`);
-    this.output.write(`${indentation}    pub fn new() -> Self {\n`);
-    this.output.write(`${indentation}        Self::default()\n`);
-    this.output.write(`${indentation}    }\n`);
-    this.output.write(`${indentation}}\n\n`);
+    this.append(`${indentation}impl ${structIdentifier} {\n`);
+    this.append(`${indentation}    pub fn new() -> Self {\n`);
+    this.append(`${indentation}        Self::default()\n`);
+    this.append(`${indentation}    }\n`);
+    this.append(`${indentation}}\n\n`);
 
-    this.output.write(`${indentation}impl Serializeable for ${structIdentifier} {\n`);
-    this.output.write(`${indentation}    fn deserialize(&mut self, reader: &StreamReader) {\n`);
+    this.append(`${indentation}impl Serializeable for ${structIdentifier} {\n`);
+    this.append(
+      `${indentation}    fn deserialize(&mut self, reader: &StreamReader) {\n`
+    );
 
     if (fields && fields.length > 0) {
       for (const field of fields) {
-        const { name: originalName, type, fixedLength, fixedLengthOperator, fixedLengthOffset, isArray, arrayLength, value } = field;
+        const {
+          name: originalName,
+          type,
+          fixedLength,
+          fixedLengthOperator,
+          fixedLengthOffset,
+          isArray,
+          arrayLength,
+          value,
+        } = field;
 
-        const name = originalName ? this.getVariableName(originalName) : '';
+        const name = originalName ? this.getVariableName(originalName) : "";
 
         const isEnum =
           field !== "BREAK" &&
@@ -345,7 +372,8 @@ class Exporter {
           type !== "struct" &&
           type !== "union" &&
           type !== "sub_string";
-        const matchingEnum = isEnum && this[this.outputType].enums.find((e) => e.name === type);
+        const matchingEnum =
+          isEnum && this[this.outputType].enums.find((e) => e.name === type);
         if (isEnum && !matchingEnum) {
           throw new Error(`Could not find matching enum: ${type}`);
         }
@@ -353,206 +381,230 @@ class Exporter {
         switch (true) {
           case isArray:
             if (typeof arrayLength === "number") {
-              this.output.write(`${indentation}        for i in 0..${arrayLength} {\n`);
+              this.append(
+                `${indentation}        for i in 0..${arrayLength} {\n`
+              );
               switch (true) {
                 case type === "string":
-                  this.output.write(
+                  this.append(
                     `${indentation}          self.${name}[i] = reader.get_break_string();\n`
                   );
                   break;
                 case type === "struct":
-                  this.output.write(
+                  this.append(
                     `${indentation}          self.${name}[i].deserialize(&reader);\n`
                   );
                   break;
                 default:
-                  this.output.write(
+                  this.append(
                     `${indentation}          self.${name}[i] = reader.get_${type}();\n`
                   );
                   break;
               }
-              this.output.write(`${indentation}        }\n`);
+              this.append(`${indentation}        }\n`);
             } else if (arrayLength) {
-              this.output.write(`${indentation}        for _ in 0..self.${arrayLength} {\n`);
+              this.append(
+                `${indentation}        for _ in 0..self.${arrayLength} {\n`
+              );
               switch (true) {
                 case type === "string":
-                  this.output.write(
+                  this.append(
                     `${indentation}          self.${name}.push(reader.get_break_string());\n`
                   );
                   break;
                 case type === "struct":
-                  this.output.write(
+                  this.append(
                     `${indentation}          let mut ${this.getVariableName(
                       field.struct
                     )} = ${removeUnderscores(field.struct)}::new();\n`
                   );
-                  this.output.write(
+                  this.append(
                     `${indentation}          ${pascalToSnake(
                       field.struct
                     )}.deserialize(&reader);\n`
                   );
-                  this.output.write(
+                  this.append(
                     `${indentation}          self.${name}.push(${pascalToSnake(
                       field.struct
                     )});\n`
                   );
                   break;
                 default:
-                  this.output.write(
+                  this.append(
                     `${indentation}          self.${name}.push(reader.get_${type}());\n`
                   );
                   break;
               }
-              this.output.write(`${indentation}        }\n`);
+              this.append(`${indentation}        }\n`);
             } else {
               // read till break or EOF
               // TODO: optimize for large packets (files)
-              this.output.write(
+              this.append(
                 `${indentation}        while !reader.eof() && reader.peek_byte() != EO_BREAK_CHAR {\n`
               );
               switch (true) {
                 case type === "string":
-                  this.output.write(
+                  this.append(
                     `${indentation}          self.${name}.push(reader.get_break_string());\n`
                   );
                   break;
                 case type === "struct":
-                  this.output.write(
+                  this.append(
                     `${indentation}          let mut ${this.getVariableName(
                       field.struct
                     )} = ${this.getIdentifierName(field.struct)}::new();\n`
                   );
-                  this.output.write(
+                  this.append(
                     `${indentation}          ${pascalToSnake(
                       field.struct
                     )}.deserialize(&reader);\n`
                   );
-                  this.output.write(
+                  this.append(
                     `${indentation}          self.${name}.push(${pascalToSnake(
                       field.struct
                     )});\n`
                   );
                   break;
                 default:
-                  this.output.write(
+                  this.append(
                     `${indentation}          self.${name}.push(reader.get_${type}());\n`
                   );
                   break;
               }
-              this.output.write(`${indentation}        }\n`);
+              this.append(`${indentation}        }\n`);
             }
             break;
           case !!value:
-            this.output.write(`${indentation}        reader.get_${type}();\n`);
+            this.append(`${indentation}        reader.get_${type}();\n`);
             break;
           case isEnum:
-            this.output.write(
-              `${indentation}        self.${name} = ${this.getIdentifierName(type)}::from_${matchingEnum.dataType}(reader.get_${matchingEnum.dataType}()).unwrap_or_default();\n`
+            this.append(
+              `${indentation}        self.${name} = ${this.getIdentifierName(
+                type
+              )}::from_${matchingEnum.dataType}(reader.get_${
+                matchingEnum.dataType
+              }()).unwrap_or_default();\n`
             );
             break;
           case type === "string":
-            this.output.write(`${indentation}        self.${name} = reader.get_break_string();\n`);
+            this.append(
+              `${indentation}        self.${name} = reader.get_break_string();\n`
+            );
             break;
           case type === "prefix_string":
-            this.output.write(`${indentation}        self.${name} = reader.get_prefix_string();\n`);
+            this.append(
+              `${indentation}        self.${name} = reader.get_prefix_string();\n`
+            );
             break;
           case type === "raw_string":
             if (fixedLength) {
-              this.output.write(
+              this.append(
                 `${indentation}        self.${name} = reader.get_fixed_string(${
-                  isNaN(fixedLength)
-                    ? `self.${fixedLength}`
-                    : fixedLength
+                  isNaN(fixedLength) ? `self.${fixedLength}` : fixedLength
                 } as usize`
               );
 
               if (fixedLengthOperator) {
-                this.output.write(` ${fixedLengthOperator} `);
+                this.append(` ${fixedLengthOperator} `);
                 if (isNaN(fixedLengthOffset)) {
-                  this.output.write(`self.${fixedLengthOffset} as usize`);
+                  this.append(`self.${fixedLengthOffset} as usize`);
                 } else {
-                  this.output.write(`${fixedLengthOffset}`);
+                  this.append(`${fixedLengthOffset}`);
                 }
               }
 
-              this.output.write(');\n');
+              this.append(");\n");
             } else {
-              this.output.write(`${indentation}        self.${name} = reader.get_end_string();\n`);
+              this.append(
+                `${indentation}        self.${name} = reader.get_end_string();\n`
+              );
             }
             break;
           case type === "emf_string":
-            this.output.write(`${indentation}        self.${name} = reader.get_emf_string(${
-              isNaN(fixedLength)
-                ? `self.${fixedLength}`
-                : fixedLength
-            } as usize);\n`);
+            this.append(
+              `${indentation}        self.${name} = reader.get_emf_string(${
+                isNaN(fixedLength) ? `self.${fixedLength}` : fixedLength
+              } as usize);\n`
+            );
             break;
           case field === "BREAK":
-            this.output.write(`${indentation}        reader.get_byte();\n`);
+            this.append(`${indentation}        reader.get_byte();\n`);
             break;
           case type === "struct":
-            this.output.write(`${indentation}        self.${name}.deserialize(&reader);\n`);
+            this.append(
+              `${indentation}        self.${name}.deserialize(&reader);\n`
+            );
             break;
           case type === "union":
-            this.output.write(`${indentation}        match self.${field.variable} {\n`);
+            this.append(
+              `${indentation}        match self.${field.variable} {\n`
+            );
             const { type: unionVariableType } = fields.find(
               (f) => f.name === field.variable
             );
             for (const unionCase of field.cases) {
               const { type: unionCaseType, name: unionCaseName } = unionCase;
-              this.output.write(
+              this.append(
                 `${indentation}            ${unionVariableType}::${removeUnderscores(
                   unionCaseType
                 )} => {\n`
               );
-              this.output.write(
+              this.append(
                 `${indentation}                let mut ${unionCaseName} = ${structIdentifier}${removeUnderscores(
                   unionCaseType
                 )}::new();\n`
               );
-              this.output.write(
+              this.append(
                 `${indentation}                ${unionCaseName}.deserialize(&reader);\n`
               );
-              this.output.write(
+              this.append(
                 `${indentation}                self.data = ${structIdentifier}Data::${removeUnderscores(
                   unionCaseType
                 )}(${unionCaseName});\n`
               );
-              this.output.write(`${indentation}            }\n`);
+              this.append(`${indentation}            }\n`);
             }
             // default do nothing
-            this.output.write(`${indentation}            _ => {}\n`);
-            this.output.write(`${indentation}        }\n`);
+            this.append(`${indentation}            _ => {}\n`);
+            this.append(`${indentation}        }\n`);
             break;
           case type === "sub_string":
-            const {string, start, length} = field;
+            const { string, start, length } = field;
             const skip = isNaN(start) ? `self.${start} as usize` : start;
             const take = isNaN(length) ? `self.${length} as usize` : length;
-            this.output.write(`${indentation}        self.${name} = self.${string}.chars()`);
+            this.append(
+              `${indentation}        self.${name} = self.${string}.chars()`
+            );
             if (skip) {
-              this.output.write(`.skip(${skip})`);
+              this.append(`.skip(${skip})`);
             }
             if (length) {
-              this.output.write(`.take(${take})`);
+              this.append(`.take(${take})`);
             }
-            this.output.write(`.collect();\n`);
+            this.append(`.collect();\n`);
             break;
           default:
-            this.output.write(`${indentation}        self.${name} = reader.get_${type}();\n`);
+            this.append(
+              `${indentation}        self.${name} = reader.get_${type}();\n`
+            );
             break;
         }
       }
     }
 
-    this.output.write(`${indentation}    }\n\n`);
+    this.append(`${indentation}    }\n\n`);
 
-    this.output.write(`${indentation}    fn serialize(&self) -> Vec<EOByte> {\n`);
-    this.output.write(`${indentation}        let mut builder = StreamBuilder::new();\n`); // TODO: calculate capacity
+    this.append(`${indentation}    fn serialize(&self) -> Vec<EOByte> {\n`);
+    this.append(
+      `${indentation}        let mut builder = StreamBuilder::new();\n`
+    ); // TODO: calculate capacity
 
     if (fields && fields.length > 0) {
       for (const field of fields) {
         const { name: originalName, type, fixedLength, isArray, value } = field;
-        const name = originalName ? this.getVariableName(originalName) : originalName;
+        const name = originalName
+          ? this.getVariableName(originalName)
+          : originalName;
 
         const isEnum =
           field !== "BREAK" &&
@@ -560,63 +612,80 @@ class Exporter {
           type !== "struct" &&
           type !== "union" &&
           type !== "sub_string";
-        const matchingEnum = isEnum && this[this.outputType].enums.find((e) => e.name === type);
+        const matchingEnum =
+          isEnum && this[this.outputType].enums.find((e) => e.name === type);
         if (isEnum && !matchingEnum) {
           throw new Error(`Could not find matching enum: ${type}`);
         }
 
         switch (true) {
           case isArray:
-            this.output.write(`${indentation}        for i in 0..self.${name}.len() {\n`);
+            this.append(
+              `${indentation}        for i in 0..self.${name}.len() {\n`
+            );
             switch (true) {
               case type === "string":
-                this.output.write(
+                this.append(
                   `${indentation}          builder.add_break_string(&self.${name}[i]);\n`
                 );
                 break;
               case type === "prefix_string":
-                this.output.write(`${indentation}          builder.add_prefix_string(&self.${name}[i]);\n`);
+                this.append(
+                  `${indentation}          builder.add_prefix_string(&self.${name}[i]);\n`
+                );
                 break;
               case type === "emf_string":
-                this.output.write(`${indentation}          builder.add_emf_string(&self.${name}[i]);\n`);
+                this.append(
+                  `${indentation}          builder.add_emf_string(&self.${name}[i]);\n`
+                );
                 break;
               case type === "struct":
-                this.output.write(
+                this.append(
                   `${indentation}          builder.append(&mut self.${name}[i].serialize());\n`
                 );
                 break;
               default:
-                this.output.write(
+                this.append(
                   `${indentation}          builder.add_${type}(self.${name}[i]);\n`
                 );
                 break;
             }
-            this.output.write(`${indentation}        }\n`);
+            this.append(`${indentation}        }\n`);
             break;
           case !!value:
             if (isNaN(value)) {
-              this.output.write(`${indentation}        builder.add_${type}(b${value});\n`);
+              this.append(
+                `${indentation}        builder.add_${type}(b${value});\n`
+              );
             } else {
-              this.output.write(`${indentation}        builder.add_${type}(${value});\n`);
+              this.append(
+                `${indentation}        builder.add_${type}(${value});\n`
+              );
             }
             break;
           case isEnum:
-            this.output.write(
+            this.append(
               `${indentation}        builder.add_${matchingEnum.dataType}(self.${name}.to_${matchingEnum.dataType}());\n`
             );
             break;
           case type === "string":
-            this.output.write(`${indentation}        builder.add_break_string(&self.${name});\n`);
+            this.append(
+              `${indentation}        builder.add_break_string(&self.${name});\n`
+            );
             break;
           case type === "prefix_string":
-            this.output.write(`${indentation}        builder.add_prefix_string(&self.${name});\n`);
+            this.append(
+              `${indentation}        builder.add_prefix_string(&self.${name});\n`
+            );
             break;
           case type === "emf_string":
-            this.output.write(`${indentation}        builder.add_emf_string(&self.${name});\n`);
+            this.append(
+              `${indentation}        builder.add_emf_string(&self.${name});\n`
+            );
             break;
           case type === "raw_string":
             if (fixedLength) {
-              this.output.write(
+              this.append(
                 `${indentation}        builder.add_fixed_string(&self.${name}, ${
                   typeof fixedLength === "string"
                     ? `self.${fixedLength}`
@@ -624,48 +693,54 @@ class Exporter {
                 } as usize);\n`
               );
             } else {
-              this.output.write(`${indentation}        builder.add_string(&self.${name});\n`);
+              this.append(
+                `${indentation}        builder.add_string(&self.${name});\n`
+              );
             }
             break;
           case field === "BREAK":
-            this.output.write(`${indentation}        builder.add_byte(EO_BREAK_CHAR);\n`);
+            this.append(
+              `${indentation}        builder.add_byte(EO_BREAK_CHAR);\n`
+            );
             break;
           case type === "struct":
-            this.output.write(
+            this.append(
               `${indentation}        builder.append(&mut self.${name}.serialize());\n`
             );
             break;
           case type === "union":
-            this.output.write(`${indentation}        match &self.data {\n`);
+            this.append(`${indentation}        match &self.data {\n`);
             for (const unionCase of field.cases) {
               const { type: unionCaseType, name: unionCaseName } = unionCase;
-              this.output.write(
+              this.append(
                 `${indentation}            ${structIdentifier}Data::${removeUnderscores(
                   unionCaseType
                 )}(${unionCaseName}) => {\n`
               );
-              this.output.write(
+              this.append(
                 `${indentation}                builder.append(&mut ${unionCaseName}.serialize());\n`
               );
-              this.output.write(`${indentation}            }\n`);
+              this.append(`${indentation}            }\n`);
             }
             // default do nothing
-            this.output.write(`${indentation}            _ => {}\n`);
-            this.output.write(`${indentation}        }\n`);
+            this.append(`${indentation}            _ => {}\n`);
+            this.append(`${indentation}        }\n`);
             break;
           case type === "sub_string":
             // no-op
             break;
           default:
-            this.output.write(`${indentation}        builder.add_${type}(self.${name});\n`);
+            this.append(
+              `${indentation}        builder.add_${type}(self.${name});\n`
+            );
             break;
         }
       }
     }
 
-    this.output.write(`${indentation}        builder.get()\n`);
-    this.output.write(`${indentation}    }\n`);
-    this.output.write(`${indentation}}\n\n`);
+    this.append(`${indentation}        builder.get()\n`);
+    this.append(`${indentation}    }\n`);
+    this.append(`${indentation}}\n\n`);
 
     // recursively print unions as structs
 
@@ -674,7 +749,8 @@ class Exporter {
       if (unions) {
         for (const union of unions) {
           for (const unionCase of union.cases) {
-            this.exportStruct({
+            this.exportStruct(
+              {
                 name: `${name}${this.getIdentifierName(unionCase.type)}`,
                 fields: unionCase.fields,
               },
@@ -690,15 +766,26 @@ class Exporter {
     }
   }
 
+  append(string) {
+    switch (this.outputType) {
+      case "protocol":
+        this.protocolOutput += string;
+        break;
+      case "pub":
+        this.pubOutput += string;
+        break;
+    }
+  }
+
   appendWarning() {
-    this.output.write(
+    this.append(
       "// WARNING! This file was generated automatically. Do NOT edit it manually.\n"
     );
-    this.output.write("// https://github.com/sorokya/eo_protocol_parser\n");
+    this.append("// https://github.com/sorokya/eo_protocol_parser\n");
   }
 
   printDocComment(comment, indent = 0) {
-    this.output.write(`${'    '.repeat(indent)}/// ${comment}\n`);
+    this.append(`${"    ".repeat(indent)}/// ${comment}\n`);
   }
 
   getIdentifierName(name) {
@@ -711,7 +798,9 @@ class Exporter {
 
   getVariableName(name) {
     const variableAlreadySnakeCase = name === name.toLowerCase();
-    const variableName = variableAlreadySnakeCase ? name : pascalToSnake(removeUnderscores(name));
+    const variableName = variableAlreadySnakeCase
+      ? name
+      : pascalToSnake(removeUnderscores(name));
     if (reserved.includes(variableName)) {
       return `r#${variableName}`;
     }
