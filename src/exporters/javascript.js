@@ -118,10 +118,10 @@ class Exporter {
         this.printDocComment(comment);
       }
 
-      this.append(`export const ${enumIdentifier} = {\n`);
+      this.append(`protocol.${enumIdentifier} = {\n`);
 
       for (const [enumValue, enumName] of Object.entries(variants)) {
-        this.append(`    ${removeUnderscores(enumName)}: ${enumValue},\n`);
+        this.append(`    ${removeUnderscores(enumName)}: ${enumValue === '_' ? 'undefined' : enumValue},\n`);
       }
 
       this.append("}\n\n");
@@ -164,7 +164,7 @@ class Exporter {
       this.printDocComment(comment, indents);
     }
 
-    this.append(`${indentation}export class ${structIdentifier} {\n`);
+    this.append(`${indentation}module.${structIdentifier} = class ${structIdentifier} {\n`);
     this.append(`${indentation}    constructor() {\n`);
     if (fields && fields.length > 0) {
       const typesWithoutBreaks = fields.filter((field) => {
