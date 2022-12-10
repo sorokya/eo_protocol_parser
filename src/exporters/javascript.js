@@ -120,7 +120,7 @@ class Exporter {
         this.printDocComment(comment);
       }
 
-      this.append(`module.${enumIdentifier} = {\n`);
+      this.append(`var ${enumIdentifier} = {\n`);
 
       for (const [enumValue, enumName] of Object.entries(variants)) {
         this.append(`    ${removeUnderscores(enumName)}: ${enumValue === '_' ? 'undefined' : enumValue},\n`);
@@ -166,7 +166,7 @@ class Exporter {
       this.printDocComment(comment, indents);
     }
 
-    this.append(`${indentation}module.${structIdentifier} = class ${structIdentifier} {\n`);
+    this.append(`${indentation}var ${structIdentifier} = class ${structIdentifier} {\n`);
     this.append(`${indentation}    constructor() {\n`);
     if (fields && fields.length > 0) {
       const typesWithoutBreaks = fields.filter((field) => {
