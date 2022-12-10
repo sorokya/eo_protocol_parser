@@ -80,8 +80,13 @@ class Exporter {
   }
 
   export() {
-    this.exportProtocol();
-    this.exportPub();
+    if (this.protocol) {
+      this.exportProtocol();
+    }
+
+    if (this.pub) {
+      this.exportPub();
+    }
 
     return { pub: this.pubOutput, protocol: this.protocolOutput };
   }
