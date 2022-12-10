@@ -120,7 +120,7 @@ class Exporter {
         this.printDocComment(comment);
       }
 
-      this.append(`protocol.${enumIdentifier} = {\n`);
+      this.append(`module.${enumIdentifier} = {\n`);
 
       for (const [enumValue, enumName] of Object.entries(variants)) {
         this.append(`    ${removeUnderscores(enumName)}: ${enumValue === '_' ? 'undefined' : enumValue},\n`);
