@@ -2,7 +2,18 @@ const fs = require('fs');
 const yargs = require('yargs/yargs');
 const { hideBin } = require('yargs/helpers');
 const {parse} = require('./index');
-const { resetOutputDirectory } = require('./exporters/utils');
+
+function resetOutputDirectory(outputDirectory, language) {
+  if (!fs.existsSync(outputDirectory)) {
+      fs.mkdirSync(outputDirectory);
+  }
+
+  if (fs.existsSync(`${outputDirectory}/${language}`)) {
+      fs.rmSync(`${outputDirectory}/${language}`, { recursive: true });
+  }
+
+  fs.mkdirSync(`${outputDirectory}/${language}`);
+}
 
 yargs(hideBin(process.argv))
   .command('export [language]', 'parses the protocol files and exports code', (yargs) => {

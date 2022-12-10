@@ -1,7 +1,4 @@
-const { match } = require("assert");
-const fs = require("fs");
 const {
-  getPrimitiveSize,
   isPrimitive,
   snakeToPascal,
   removeUnderscores,
