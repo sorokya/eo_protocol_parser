@@ -408,26 +408,42 @@ class Exporter {
             const { type: unionVariableType } = fields.find(
               (f) => f.name === field.variable
             );
+            const unionEnum = this[this.outputType].enums.find((e) => e.name === unionVariableType);
             this.append(
               `${indentation}        switch(this.${this.getVariableName(
                 field.variable
               )}) {\n`
             );
+
             field.cases.forEach((unionCase) => {
-              this.append(
-                `${indentation}          case ${unionVariableType}.${removeUnderscores(
-                  unionCase.type
-                )}:\n`
-              );
-              this.append(
-                `${indentation}              this.data = new ${structIdentifier}${this.getIdentifierName(
-                  unionCase.type
-                )}();\n`
-              );
-              this.append(
-                `${indentation}              this.data.deserialize(reader);\n`
-              );
-              this.append(`${indentation}              break;\n`);
+              const enumVariant = Object.keys(unionEnum.variants).find((key) => unionEnum.variants[key] === unionCase.type);
+              const enumVariantName = unionEnum.variants[enumVariant];
+              if (enumVariant === '_') {
+                this.append(
+                  `${indentation}          default:\n`
+                );
+                this.append(
+                  `${indentation}              this.${this.getVariableName(enumVariantName)} = this.${this.getVariableName(
+                    field.variable
+                  )};\n`
+                );
+                this.append(`${indentation}              break;\n`);
+              } else {
+                this.append(
+                  `${indentation}          case ${unionVariableType}.${removeUnderscores(
+                    unionCase.type
+                  )}:\n`
+                );
+                this.append(
+                  `${indentation}              this.data = new ${structIdentifier}${this.getIdentifierName(
+                    unionCase.type
+                  )}();\n`
+                );
+                this.append(
+                  `${indentation}              this.data.deserialize(reader);\n`
+                );
+                this.append(`${indentation}              break;\n`);
+              }
             });
             this.append(`${indentation}        }\n`);
             break;
