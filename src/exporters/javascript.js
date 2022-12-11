@@ -250,7 +250,7 @@ class Exporter {
               this.append(`${indentation}        }\n`);
             } else if (arrayLength) {
               this.append(
-                `${indentation}        for (let i = 0; i < this.${getVariableName(arrayLength)}; ++i) {\n`
+                `${indentation}        for (let i = 0; i < this.${this.getVariableName(arrayLength)}; ++i) {\n`
               );
               switch (true) {
                 case type === "string":
