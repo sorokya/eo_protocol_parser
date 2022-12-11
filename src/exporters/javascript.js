@@ -231,6 +231,11 @@ class Exporter {
                   break;
                 case type === "struct":
                   this.append(
+                    `${indentation}        this.${this.getVariableName(
+                      field.struct
+                    )} = new ${this.getIdentifierName(field.struct)}();\n`
+                  );
+                  this.append(
                     `${indentation}          this.${name}[i].deserialize(reader);\n`
                   );
                   break;
@@ -379,6 +384,11 @@ class Exporter {
             this.append(`${indentation}        reader.getByte();\n`);
             break;
           case type === "struct":
+            this.append(
+              `${indentation}        this.${this.getVariableName(
+                field.struct
+              )} = new ${this.getIdentifierName(field.struct)}();\n`
+            );
             this.append(
               `${indentation}        this.${name}.deserialize(reader);\n`
             );
