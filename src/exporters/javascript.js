@@ -449,6 +449,14 @@ class Exporter {
         }
       }
     }
+
+    // throw error if not all bytes have been read
+    this.append(`${indentation}        if (!reader.eof()) {\n`);
+    this.append(
+      `${indentation}          throw new Error('Not all bytes have been read');\n`
+    );
+    this.append(`${indentation}        }\n`);
+
     this.append(`${indentation}    }\n`);
     this.append(`${indentation}    serialize() {\n`);
     this.append(`${indentation}        const builder = new Builder();\n`);
