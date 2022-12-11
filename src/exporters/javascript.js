@@ -427,23 +427,22 @@ class Exporter {
                     field.variable
                   )};\n`
                 );
-                this.append(`${indentation}              break;\n`);
               } else {
                 this.append(
                   `${indentation}          case ${unionVariableType}.${removeUnderscores(
                     unionCase.type
                   )}:\n`
                 );
-                this.append(
-                  `${indentation}              this.data = new ${structIdentifier}${this.getIdentifierName(
-                    unionCase.type
-                  )}();\n`
-                );
-                this.append(
-                  `${indentation}              this.data.deserialize(reader);\n`
-                );
-                this.append(`${indentation}              break;\n`);
               }
+              this.append(
+                `${indentation}              this.data = new ${structIdentifier}${this.getIdentifierName(
+                  unionCase.type
+                )}();\n`
+              );
+              this.append(
+                `${indentation}              this.data.deserialize(reader);\n`
+              );
+              this.append(`${indentation}              break;\n`);
             });
             this.append(`${indentation}        }\n`);
             break;
