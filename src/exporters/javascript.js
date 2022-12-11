@@ -132,7 +132,7 @@ class Exporter {
 
   exportStructs() {
     for (const struct of this[this.outputType].structs) {
-      this.exportStruct(struct, 0, true);
+      this.exportStruct(struct);
     }
   }
 
@@ -158,7 +158,7 @@ class Exporter {
     }
   }
 
-  exportStruct({ comment, name, fields }, indents = 0, isRoot = false) {
+  exportStruct({ comment, name, fields }, indents = 0, isPacket = false) {
     const structIdentifier = this.getIdentifierName(name);
     const indentation = "    ".repeat(indents);
 
@@ -468,7 +468,7 @@ class Exporter {
     }
 
     // throw error if not all bytes have been read
-    if (isRoot) {
+    if (isPacket) {
       this.append(`${indentation}        if (!reader.eof()) {\n`);
       this.append(
         `${indentation}          throw new Error('Not all bytes have been read');\n`
