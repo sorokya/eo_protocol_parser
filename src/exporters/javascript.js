@@ -226,7 +226,7 @@ class Exporter {
               switch (true) {
                 case type === "string":
                   this.append(
-                    `${indentation}          this.${name}[i] = reader.geBreakString();\n`
+                    `${indentation}          this.${name}[i] = reader.getBreakString();\n`
                   );
                   break;
                 case type === "struct":
