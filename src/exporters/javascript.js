@@ -1,8 +1,4 @@
-const {
-  isPrimitive,
-  snakeToPascal,
-  removeUnderscores,
-} = require("./utils");
+const { isPrimitive, snakeToPascal, removeUnderscores } = require("./utils");
 
 const reserved = [
   "abstract",
@@ -123,7 +119,11 @@ class Exporter {
       this.append(`var ${enumIdentifier} = {\n`);
 
       for (const [enumValue, enumName] of Object.entries(variants)) {
-        this.append(`    ${removeUnderscores(enumName)}: ${enumValue === '_' ? 'undefined' : enumValue},\n`);
+        this.append(
+          `    ${removeUnderscores(enumName)}: ${
+            enumValue === "_" ? "undefined" : enumValue
+          },\n`
+        );
       }
 
       this.append("}\n\n");
@@ -166,7 +166,9 @@ class Exporter {
       this.printDocComment(comment, indents);
     }
 
-    this.append(`${indentation}var ${structIdentifier} = class ${structIdentifier} {\n`);
+    this.append(
+      `${indentation}var ${structIdentifier} = class ${structIdentifier} {\n`
+    );
     this.append(`${indentation}    constructor() {\n`);
     if (fields && fields.length > 0) {
       const typesWithoutBreaks = fields.filter((field) => {
@@ -231,7 +233,9 @@ class Exporter {
                   break;
                 case type === "struct":
                   this.append(
-                    `${indentation}        this.${name} = new ${this.getIdentifierName(field.struct)}();\n`
+                    `${indentation}        this.${name} = new ${this.getIdentifierName(
+                      field.struct
+                    )}();\n`
                   );
                   this.append(
                     `${indentation}          this.${name}[i].deserialize(reader);\n`
@@ -248,7 +252,9 @@ class Exporter {
               this.append(`${indentation}        }\n`);
             } else if (arrayLength) {
               this.append(
-                `${indentation}        for (let i = 0; i < this.${this.getVariableName(arrayLength)}; ++i) {\n`
+                `${indentation}        for (let i = 0; i < this.${this.getVariableName(
+                  arrayLength
+                )}; ++i) {\n`
               );
               switch (true) {
                 case type === "string":
@@ -336,6 +342,13 @@ class Exporter {
                 matchingEnum.dataType.substr(1)
               }();\n`
             );
+            this.append(
+              `${indentation}        this.${name}Name = Object.keys(${this.getIdentifierName(
+                matchingEnum.name
+              )}).find((key) => ${this.getIdentifierName(
+                matchingEnum.name
+              )}[key] === this.${name});\n`
+            );
             break;
           case type === "string":
             this.append(
@@ -383,7 +396,9 @@ class Exporter {
             break;
           case type === "struct":
             this.append(
-              `${indentation}        this.${name} = new ${this.getIdentifierName(field.struct)}();\n`
+              `${indentation}        this.${name} = new ${this.getIdentifierName(
+                field.struct
+              )}();\n`
             );
             this.append(
               `${indentation}        this.${name}.deserialize(reader);\n`
@@ -646,7 +661,7 @@ class Exporter {
       case "raw_string":
         return "''";
       default:
-        return 'null';
+        return "null";
     }
   }
 
