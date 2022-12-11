@@ -219,6 +219,8 @@ class Exporter {
           throw new Error(`Could not find matching enum: ${type}`);
         }
 
+        const enumDataType = field.enumDataType || matchingEnum.dataType;
+
         switch (true) {
           case isArray:
             if (typeof arrayLength === "number") {
@@ -338,8 +340,8 @@ class Exporter {
           case isEnum:
             this.append(
               `${indentation}        this.${name} = reader.get${
-                matchingEnum.dataType.substr(0, 1).toUpperCase() +
-                matchingEnum.dataType.substr(1)
+                enumDataType.substr(0, 1).toUpperCase() +
+                enumDataType.substr(1)
               }();\n`
             );
             this.append(
@@ -496,6 +498,8 @@ class Exporter {
           throw new Error(`Could not find matching enum: ${type}`);
         }
 
+        const enumDataType = field.enumDataType || matchingEnum.dataType;
+
         switch (true) {
           case isArray:
             this.append(
@@ -550,8 +554,8 @@ class Exporter {
           case isEnum:
             this.append(
               `${indentation}        builder.add${
-                matchingEnum.dataType.substr(0, 1).toUpperCase() +
-                matchingEnum.dataType.substr(1)
+                enumDataType.substr(0, 1).toUpperCase() +
+                enumDataType.substr(1)
               }(this.${name});\n`
             );
             break;
