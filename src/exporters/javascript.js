@@ -132,7 +132,7 @@ class Exporter {
 
   exportStructs() {
     for (const struct of this[this.outputType].structs) {
-      this.exportStruct(struct);
+      this.exportStruct(struct, 0, true);
     }
   }
 
@@ -152,13 +152,13 @@ class Exporter {
           this.exportStruct({
             ...packet,
             name: `${who}${family}${packet.action}`,
-          });
+          }, 0, true);
         }
       }
     }
   }
 
-  exportStruct({ comment, name, fields }, indents = 0) {
+  exportStruct({ comment, name, fields }, indents = 0, isRoot = false) {
     const structIdentifier = this.getIdentifierName(name);
     const indentation = "    ".repeat(indents);
 
@@ -466,11 +466,13 @@ class Exporter {
     }
 
     // throw error if not all bytes have been read
-    this.append(`${indentation}        if (!reader.eof()) {\n`);
-    this.append(
-      `${indentation}          throw new Error('Not all bytes have been read');\n`
-    );
-    this.append(`${indentation}        }\n`);
+    if (isRoot) {
+      this.append(`${indentation}        if (!reader.eof()) {\n`);
+      this.append(
+        `${indentation}          throw new Error('Not all bytes have been read');\n`
+      );
+      this.append(`${indentation}        }\n`);
+    }
 
     this.append(`${indentation}    }\n`);
     this.append(`${indentation}    serialize() {\n`);
