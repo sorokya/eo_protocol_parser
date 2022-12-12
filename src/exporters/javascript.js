@@ -366,7 +366,7 @@ class Exporter {
             if (fixedLength) {
               this.append(
                 `${indentation}        this.${name} = reader.getFixedString(${
-                  isNaN(fixedLength) ? `this.${fixedLength}` : fixedLength
+                  isNaN(fixedLength) ? `this.${this.getVariableName(fixedLength)}` : fixedLength
                 }`
               );
 
