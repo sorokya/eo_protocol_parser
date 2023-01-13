@@ -541,13 +541,29 @@ class Exporter {
             const { type: unionVariableType } = fields.find(
               (f) => f.name === field.variable
             );
+            const unionEnum = this.protocol.enums.find(
+              (e) => e.name === unionVariableType
+            );
             for (const unionCase of field.cases) {
               const { type: unionCaseType, name: unionCaseName } = unionCase;
-              this.append(
-                `${indentation}            ${unionVariableType}::${removeUnderscores(
-                  unionCaseType
-                )} => {\n`
+              const variant = Object.entries(unionEnum.variants).find(
+                ([_, key]) => key === unionCaseType
               );
+
+              if (variant[0] === "_") {
+                this.append(
+                  `${indentation}            ${unionVariableType}::${removeUnderscores(
+                    unionCaseType
+                  )}(_) => {\n`
+                );
+              } else {
+                this.append(
+                  `${indentation}            ${unionVariableType}::${removeUnderscores(
+                    unionCaseType
+                  )} => {\n`
+                );
+              }
+
               this.append(
                 `${indentation}                let mut ${unionCaseName} = ${structIdentifier}${removeUnderscores(
                   unionCaseType
