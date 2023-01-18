@@ -88,6 +88,11 @@ const SubString = createToken({
     pattern: /sub_string/,
 });
 
+const Optional = createToken({
+  name: "Optional",
+  pattern: /optional/,
+});
+
 const LCurly = createToken({ name: "LCurly", pattern: /{/ })
 const RCurly = createToken({ name: "RCurly", pattern: /}/ })
 const LSquare = createToken({ name: "LSquare", pattern: /\[/ })
@@ -110,32 +115,33 @@ const EverythingElse = createToken({
 });
 
 const allTokens = [
-    DocComment,
-    Comment,
-    Integer,
-    DataType,
-    Equals,
-    Break,
-    Comma,
-    LCurly,
-    RCurly,
-    LSquare,
-    RSquare,
-    LParen,
-    RParen,
-    Add,
-    Subtract,
-    SubString,
-    ServerPacket,
-    ClientPacket,
-    Enum,
-    Struct,
-    Union,
-    CharacterValue,
-    Colon,
-    Identifier,
-    BlankLine,
-    EverythingElse,
+  DocComment,
+  Comment,
+  Integer,
+  DataType,
+  Equals,
+  Break,
+  Comma,
+  LCurly,
+  RCurly,
+  LSquare,
+  RSquare,
+  LParen,
+  RParen,
+  Add,
+  Subtract,
+  SubString,
+  Optional,
+  ServerPacket,
+  ClientPacket,
+  Enum,
+  Struct,
+  Union,
+  CharacterValue,
+  Colon,
+  Identifier,
+  BlankLine,
+  EverythingElse,
 ];
 
 const ProtocolLexer = new Lexer(allTokens);

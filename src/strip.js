@@ -112,16 +112,18 @@ function stripNormalField(fieldCst) {
     const fixedLengthOperator = fieldCst.children['FixedLengthOperator']?.[0]?.image;
     const fixedLengthOffset = Number(fieldCst.children['FixedLengthOffset']?.[0]?.image) || fieldCst.children['FixedLengthOffset']?.[0]?.image || undefined;
     const isArray = !!fieldCst.children['LSquare'];
+    const isOptional = !!fieldCst.children["Optional"];
 
     return {
-        name,
-        type,
-        enumDataType,
-        fixedLength,
-        fixedLengthOperator,
-        fixedLengthOffset,
-        arrayLength,
-        isArray,
+      name,
+      type,
+      enumDataType,
+      fixedLength,
+      fixedLengthOperator,
+      fixedLengthOffset,
+      arrayLength,
+      isArray,
+      isOptional,
     };
 }
 
@@ -130,13 +132,15 @@ function stripStructField(fieldCst) {
     const name = fieldCst.children['Identifier'][1]?.image;
     const isArray = !!fieldCst.children['LSquare'];
     const arrayLength = fieldCst.children['ArrayLength']?.[0]?.image || undefined;
+    const isOptional = !!fieldCst.children["Optional"];
 
     return {
-        type: 'struct',
-        name,
-        struct,
-        isArray,
-        arrayLength: isNaN(arrayLength) ? arrayLength : Number(arrayLength),
+      type: "struct",
+      name,
+      struct,
+      isArray,
+      arrayLength: isNaN(arrayLength) ? arrayLength : Number(arrayLength),
+      isOptional,
     };
 }
 

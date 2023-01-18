@@ -286,6 +286,7 @@ class Exporter {
           name: originalName,
           type,
           isArray,
+          isOptional,
           arrayLength,
           comment,
         } = field;
@@ -310,9 +311,15 @@ class Exporter {
         switch (true) {
           case isArray:
             if (typeof arrayLength === "number") {
-              this.append(
-                `${indentation}    pub ${name}: [${typeName}; ${arrayLength}],\n`
-              );
+              if (isOptional) {
+                this.append(
+                  `${indentation}    pub ${name}: Option<[${typeName}; ${arrayLength}]>,\n`
+                );
+              } else {
+                this.append(
+                  `${indentation}    pub ${name}: [${typeName}; ${arrayLength}],\n`
+                );
+              }
             } else {
               this.append(`${indentation}    pub ${name}: Vec<${typeName}>,\n`);
             }
@@ -324,15 +331,31 @@ class Exporter {
           case !name:
             continue;
           case isEnum:
-            this.append(
-              `${indentation}    pub ${name}: ${this.getIdentifierName(
-                type
-              )},\n`
-            );
-            break;
+            if (isOptional) {
+              this.append(
+                `${indentation}    pub ${name}: Option<${this.getIdentifierName(
+                  type
+                )}>,\n`
+              );
+              break;
+            } else {
+              this.append(
+                `${indentation}    pub ${name}: ${this.getIdentifierName(
+                  type
+                )},\n`
+              );
+              break;
+            }
           default:
-            this.append(`${indentation}    pub ${name}: ${typeName},\n`);
-            break;
+            if (isOptional) {
+              this.append(
+                `${indentation}    pub ${name}: Option<${typeName}>,\n`
+              );
+              break;
+            } else {
+              this.append(`${indentation}    pub ${name}: ${typeName},\n`);
+              break;
+            }
         }
       }
     }
@@ -359,6 +382,7 @@ class Exporter {
           fixedLengthOperator,
           fixedLengthOffset,
           isArray,
+          isOptional,
           arrayLength,
           value,
         } = field;
@@ -378,6 +402,7 @@ class Exporter {
         }
 
         switch (true) {
+          // TODO: optional arrays? Probably not needed
           case isArray:
             if (typeof arrayLength === "number") {
               this.append(
@@ -477,25 +502,60 @@ class Exporter {
             this.append(`${indentation}        reader.get_${type}();\n`);
             break;
           case isEnum:
-            this.append(
-              `${indentation}        self.${name} = ${this.getIdentifierName(
-                type
-              )}::from_${matchingEnum.dataType}(reader.get_${
-                matchingEnum.dataType
-              }()).unwrap_or_default();\n`
-            );
+            if (isOptional) {
+              this.append(
+                `${indentation}        self.${name} = if !reader.eof() {\n`
+              );
+              this.append(
+                `${indentation}           Some(${this.getIdentifierName(
+                  type
+                )}::from_${matchingEnum.dataType}(reader.get_${
+                  matchingEnum.dataType
+                }()).unwrap_or_default())\n`
+              );
+              this.append(`${indentation}        } else { None };\n`);
+            } else {
+              this.append(
+                `${indentation}        self.${name} = ${this.getIdentifierName(
+                  type
+                )}::from_${matchingEnum.dataType}(reader.get_${
+                  matchingEnum.dataType
+                }()).unwrap_or_default();\n`
+              );
+            }
             break;
           case type === "string":
-            this.append(
-              `${indentation}        self.${name} = reader.get_break_string();\n`
-            );
+            if (isOptional) {
+              this.append(
+                `${indentation}       self.${name} = if !reader.eof() {\n`
+              );
+              this.append(
+                `${indentation}           Some(reader.get_break_string())\n`
+              );
+              this.append(`${indentation}       } else { None };\n`);
+            } else {
+              this.append(
+                `${indentation}        self.${name} = reader.get_break_string();\n`
+              );
+            }
             break;
           case type === "prefix_string":
-            this.append(
-              `${indentation}        self.${name} = reader.get_prefix_string();\n`
-            );
+            if (isOptional) {
+              this.append(
+                `${indentation}       self.${name} = if !reader.eof() {\n`
+              );
+              this.append(
+                `${indentation}           Some(reader.get_prefix_string())\n`
+              );
+              this.append(`${indentation}       } else { None };\n`);
+            } else {
+              this.append(
+                `${indentation}        self.${name} = reader.get_prefix_string();\n`
+              );
+            }
             break;
           case type === "raw_string":
+            // Fixed strings shouldn't be optional...
             if (fixedLength) {
               this.append(
                 `${indentation}        self.${name} = reader.get_fixed_string(${
@@ -514,9 +574,19 @@ class Exporter {
 
               this.append(");\n");
             } else {
-              this.append(
-                `${indentation}        self.${name} = reader.get_end_string();\n`
-              );
+              if (isOptional) {
+                this.append(
+                  `${indentation}       self.${name} = if !reader.eof() {\n`
+                );
+                this.append(
+                  `${indentation}           Some(reader.get_end_string())\n`
+                );
+                this.append(`${indentation}       } else { None };\n`);
+              } else {
+                this.append(
+                  `${indentation}        self.${name} = reader.get_end_string();\n`
+                );
+              }
             }
             break;
           case type === "emf_string":
@@ -530,9 +600,31 @@ class Exporter {
             this.append(`${indentation}        reader.get_byte();\n`);
             break;
           case type === "struct":
-            this.append(
-              `${indentation}        self.${name}.deserialize(&reader);\n`
-            );
+            if (isOptional) {
+              this.append(
+                `${indentation}        self.${name} = if !reader.eof() {\n`
+              );
+              this.append(
+                `${indentation}           let mut ${this.getVariableName(
+                  field.struct
+                )} = ${this.getIdentifierName(field.struct)}::default();\n`
+              );
+              this.append(
+                `${indentation}           ${this.getVariableName(
+                  field.struct
+                )}.deserialize(&reader);\n`
+              );
+              this.append(
+                `${indentation}           Some(${this.getVariableName(
+                  field.struct
+                )})`
+              );
+              this.append(`${indentation}       } else { None };\n`);
+            } else {
+              this.append(
+                `${indentation}        self.${name}.deserialize(&reader);\n`
+              );
+            }
             break;
           case type === "union":
             this.append(
@@ -616,7 +708,14 @@ class Exporter {
 
     if (fields && fields.length > 0) {
       for (const field of fields) {
-        const { name: originalName, type, fixedLength, isArray, value } = field;
+        const {
+          name: originalName,
+          type,
+          fixedLength,
+          isArray,
+          value,
+          isOptional,
+        } = field;
         const name = originalName
           ? this.getVariableName(originalName)
           : originalName;
@@ -679,19 +778,49 @@ class Exporter {
             }
             break;
           case isEnum:
-            this.append(
-              `${indentation}        builder.add_${matchingEnum.dataType}(self.${name}.to_${matchingEnum.dataType}());\n`
-            );
+            if (isOptional) {
+              this.append(
+                `${indentation}        if let Some(${name}) = self.${name} {\n`
+              );
+              this.append(
+                `${indentation}            builder.add_${matchingEnum.dataType}(${name}.to_${matchingEnum.dataType}());\n`
+              );
+              this.append(`${indentation}        }\n`);
+            } else {
+              this.append(
+                `${indentation}        builder.add_${matchingEnum.dataType}(self.${name}.to_${matchingEnum.dataType}());\n`
+              );
+            }
             break;
           case type === "string":
-            this.append(
-              `${indentation}        builder.add_break_string(&self.${name});\n`
-            );
+            if (isOptional) {
+              this.append(
+                `${indentation}        if let Some(${name}) = &self.${name} {\n`
+              );
+              this.append(
+                `${indentation}            builder.add_break_string(${name});\n`
+              );
+              this.append(`${indentation}        }\n`);
+            } else {
+              this.append(
+                `${indentation}        builder.add_break_string(&self.${name});\n`
+              );
+            }
             break;
           case type === "prefix_string":
-            this.append(
-              `${indentation}        builder.add_prefix_string(&self.${name});\n`
-            );
+            if (isOptional) {
+              this.append(
+                `${indentation}        if let Some(${name}) = &self.${name} {\n`
+              );
+              this.append(
+                `${indentation}            builder.add_prefix_string(${name});\n`
+              );
+              this.append(`${indentation}        }\n`);
+            } else {
+              this.append(
+                `${indentation}        builder.add_prefix_string(&self.${name});\n`
+              );
+            }
             break;
           case type === "emf_string":
             this.append(
@@ -708,9 +837,19 @@ class Exporter {
                 } as usize);\n`
               );
             } else {
-              this.append(
-                `${indentation}        builder.add_string(&self.${name});\n`
-              );
+              if (isOptional) {
+                this.append(
+                  `${indentation}        if let Some(${name}) = &self.${name} {\n`
+                );
+                this.append(
+                  `${indentation}            builder.add_string(${name});\n`
+                );
+                this.append(`${indentation}        }\n`);
+              } else {
+                this.append(
+                  `${indentation}        builder.add_string(&self.${name});\n`
+                );
+              }
             }
             break;
           case field === "BREAK":
@@ -719,9 +858,19 @@ class Exporter {
             );
             break;
           case type === "struct":
-            this.append(
-              `${indentation}        builder.append(&mut self.${name}.serialize());\n`
-            );
+            if (isOptional) {
+              this.append(
+                `${indentation}        if let Some(${name}) = &self.${name} {\n`
+              );
+              this.append(
+                `${indentation}            builder.append(&mut ${name}.serialize());\n`
+              );
+              this.append(`${indentation}        }\n`);
+            } else {
+              this.append(
+                `${indentation}        builder.append(&mut self.${name}.serialize());\n`
+              );
+            }
             break;
           case type === "union":
             this.append(`${indentation}        match &self.data {\n`);
