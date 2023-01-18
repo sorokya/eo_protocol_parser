@@ -5,6 +5,8 @@ const {
   removeUnderscores,
 } = require("./utils");
 
+const copyStructs = ["Coords"];
+
 const reserved = [
   "as",
   "break",
@@ -67,6 +69,9 @@ class Exporter {
     this.appendWarning();
     this.append("\n");
 
+    this.append(`#[cfg(feature = "serde")]\n`);
+    this.append(`use serde::{Deserialize, Serialize};\n`);
+
     this.append("use log::warn;\n");
     this.append(
       `use ${this.crateName}::data::{EO_BREAK_CHAR, EOByte, EOChar, EOThree, EOInt, EOShort, Serializeable, StreamReader, StreamBuilder};\n\n`
@@ -83,6 +88,9 @@ class Exporter {
     this.outputType = "pub";
     this.appendWarning();
     this.append("\n");
+
+    this.append(`#[cfg(feature = "serde")]\n`);
+    this.append(`use serde::{Deserialize, Serialize};\n`);
 
     this.append("use log::warn;\n");
     this.append(
@@ -111,6 +119,9 @@ class Exporter {
       }
 
       this.append(`#[derive(Debug, Clone, Copy, PartialEq, Eq)]\n`);
+      this.append(
+        `#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]\n`
+      );
       this.append(`pub enum ${enumIdentifier} {\n`);
 
       for (const [enumValue, enumName] of Object.entries(variants)) {
@@ -253,6 +264,8 @@ class Exporter {
             `${indentation}    ${caseName}(${structIdentifier}${caseName}),\n`
           );
         }
+
+        this.append(`${indentation}    None,\n`);
         this.append(`${indentation}}\n\n`);
 
         this.append(
@@ -271,8 +284,12 @@ class Exporter {
       }
     }
 
+    const additionalDerives = copyStructs.includes(structIdentifier)
+      ? ", Copy"
+      : "";
+
     this.append(
-      `${indentation}#[derive(Debug, Default, Clone, PartialEq, Eq)]\n`
+      `${indentation}#[derive(Debug, Default, Clone, PartialEq, Eq${additionalDerives})]\n`
     );
     this.append(`${indentation}pub struct ${structIdentifier} {\n`);
 
