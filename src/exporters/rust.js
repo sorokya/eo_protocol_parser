@@ -519,6 +519,19 @@ class Exporter {
             this.append(`${indentation}        reader.get_${type}();\n`);
             break;
           case isEnum:
+            if (field.enumDataType) {
+              this.append(
+                `${indentation}        self.${name} = ${this.getIdentifierName(
+                  type
+                )}::from_${matchingEnum.dataType}(reader.get_${
+                  field.enumDataType
+                }() as ${this.getTypeName(
+                  matchingEnum.dataType
+                )}).unwrap_or_default();\n`
+              );
+              break;
+            }
+
             if (isOptional) {
               this.append(
                 `${indentation}        self.${name} = if !reader.eof() {\n`
@@ -610,8 +623,19 @@ class Exporter {
             this.append(
               `${indentation}        self.${name} = reader.get_emf_string(${
                 isNaN(fixedLength) ? `self.${fixedLength}` : fixedLength
-              } as usize);\n`
+              } as usize`
             );
+
+            if (fixedLengthOperator) {
+              this.append(` ${fixedLengthOperator} `);
+              if (isNaN(fixedLengthOffset)) {
+                this.append(`self.${fixedLengthOffset} as usize`);
+              } else {
+                this.append(`${fixedLengthOffset}`);
+              }
+            }
+
+            this.append(");\n");
             break;
           case field === "BREAK":
             this.append(`${indentation}        reader.get_byte();\n`);
@@ -769,6 +793,17 @@ class Exporter {
                 this.append(
                   `${indentation}          builder.add_emf_string(&self.${name}[i]);\n`
                 );
+
+                if (fixedLength) {
+                  this.append(
+                    `${indentation}          builder.append(&mut vec![0xFF; ${
+                      isNaN(fixedLength)
+                        ? `self.${fixedLength} as usize`
+                        : fixedLength
+                    } - self.${name}[i].len()]);\n`
+                  );
+                }
+
                 break;
               case type === "struct":
                 this.append(
@@ -843,6 +878,17 @@ class Exporter {
             this.append(
               `${indentation}        builder.add_emf_string(&self.${name});\n`
             );
+
+            if (fixedLength) {
+              this.append(
+                `${indentation}        builder.append(&mut vec![0xFF; ${
+                  isNaN(fixedLength)
+                    ? `self.${fixedLength} as usize`
+                    : fixedLength
+                } - self.${name}.len()]);\n`
+              );
+            }
+
             break;
           case type === "raw_string":
             if (fixedLength) {
