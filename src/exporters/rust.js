@@ -753,6 +753,8 @@ class Exporter {
           name: originalName,
           type,
           fixedLength,
+          fixedLengthOperator,
+          fixedLengthOffset,
           isArray,
           value,
           isOptional,
@@ -875,19 +877,28 @@ class Exporter {
             }
             break;
           case type === "emf_string":
+            if (!fixedLength) {
+              throw new Error("Emf strings must have a fixed length");
+            }
+
             this.append(
-              `${indentation}        builder.add_emf_string(&self.${name});\n`
+              `${indentation}        builder.add_emf_string(&self.${name}, ${
+                isNaN(fixedLength)
+                  ? `self.${fixedLength} as usize`
+                  : fixedLength
+              }`
             );
 
-            if (fixedLength) {
-              this.append(
-                `${indentation}        builder.append(&mut vec![0xFF; ${
-                  isNaN(fixedLength)
-                    ? `self.${fixedLength} as usize`
-                    : fixedLength
-                } - self.${name}.len()]);\n`
-              );
+            if (fixedLengthOperator) {
+              this.append(` ${fixedLengthOperator} `);
+              if (isNaN(fixedLengthOffset)) {
+                this.append(`self.${fixedLengthOffset} as usize`);
+              } else {
+                this.append(`${fixedLengthOffset}`);
+              }
             }
+
+            this.append(`);\n`);
 
             break;
           case type === "raw_string":
