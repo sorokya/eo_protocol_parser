@@ -433,7 +433,7 @@ class Exporter {
                   break;
                 case type === "struct":
                   this.append(
-                    `${indentation}          self.${name}[i].deserialize(&reader);\n`
+                    `${indentation}          self.${name}[i].deserialize(reader);\n`
                   );
                   break;
                 default:
@@ -462,7 +462,7 @@ class Exporter {
                   this.append(
                     `${indentation}          ${pascalToSnake(
                       field.struct
-                    )}.deserialize(&reader);\n`
+                    )}.deserialize(reader);\n`
                   );
                   this.append(
                     `${indentation}          self.${name}.push(${pascalToSnake(
@@ -498,7 +498,7 @@ class Exporter {
                   this.append(
                     `${indentation}          ${pascalToSnake(
                       field.struct
-                    )}.deserialize(&reader);\n`
+                    )}.deserialize(reader);\n`
                   );
                   this.append(
                     `${indentation}          self.${name}.push(${pascalToSnake(
@@ -653,7 +653,7 @@ class Exporter {
               this.append(
                 `${indentation}           ${this.getVariableName(
                   field.struct
-                )}.deserialize(&reader);\n`
+                )}.deserialize(reader);\n`
               );
               this.append(
                 `${indentation}           Some(${this.getVariableName(
@@ -663,7 +663,7 @@ class Exporter {
               this.append(`${indentation}       } else { None };\n`);
             } else {
               this.append(
-                `${indentation}        self.${name}.deserialize(&reader);\n`
+                `${indentation}        self.${name}.deserialize(reader);\n`
               );
             }
             break;
@@ -703,7 +703,7 @@ class Exporter {
                 )}::new();\n`
               );
               this.append(
-                `${indentation}                ${unionCaseName}.deserialize(&reader);\n`
+                `${indentation}                ${unionCaseName}.deserialize(reader);\n`
               );
               this.append(
                 `${indentation}                self.data = ${structIdentifier}Data::${removeUnderscores(
@@ -742,10 +742,9 @@ class Exporter {
 
     this.append(`${indentation}    }\n\n`);
 
-    this.append(`${indentation}    fn serialize(&self) -> Vec<EOByte> {\n`);
     this.append(
-      `${indentation}        let mut builder = StreamBuilder::new();\n`
-    ); // TODO: calculate capacity
+      `${indentation}    fn serialize(&self, builder: &mut StreamBuilder) {\n`
+    );
 
     if (fields && fields.length > 0) {
       for (const field of fields) {
@@ -809,7 +808,7 @@ class Exporter {
                 break;
               case type === "struct":
                 this.append(
-                  `${indentation}          builder.append(&mut self.${name}[i].serialize());\n`
+                  `${indentation}          self.${name}[i].serialize(builder);\n`
                 );
                 break;
               default:
@@ -937,12 +936,12 @@ class Exporter {
                 `${indentation}        if let Some(${name}) = &self.${name} {\n`
               );
               this.append(
-                `${indentation}            builder.append(&mut ${name}.serialize());\n`
+                `${indentation}            ${name}.serialize(builder);\n`
               );
               this.append(`${indentation}        }\n`);
             } else {
               this.append(
-                `${indentation}        builder.append(&mut self.${name}.serialize());\n`
+                `${indentation}        self.${name}.serialize(builder);\n`
               );
             }
             break;
@@ -956,7 +955,7 @@ class Exporter {
                 )}(${unionCaseName}) => {\n`
               );
               this.append(
-                `${indentation}                builder.append(&mut ${unionCaseName}.serialize());\n`
+                `${indentation}                ${unionCaseName}.serialize(builder);\n`
               );
               this.append(`${indentation}            }\n`);
             }
@@ -976,7 +975,6 @@ class Exporter {
       }
     }
 
-    this.append(`${indentation}        builder.get()\n`);
     this.append(`${indentation}    }\n`);
     this.append(`${indentation}}\n\n`);
 
