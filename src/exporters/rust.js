@@ -53,15 +53,15 @@ class Exporter {
     this.protocol = protocol;
     this.pub = pub;
     this.crateName = crateName === "eo" ? "crate" : "eo";
-    this.pubOutput = '';
-    this.protocolOutput = '';
+    this.pubOutput = "";
+    this.protocolOutput = "";
   }
 
   export() {
     this.exportProtocol();
     this.exportPub();
 
-    return {pub: this.pubOutput, protocol: this.protocolOutput};
+    return { pub: this.pubOutput, protocol: this.protocolOutput };
   }
 
   exportProtocol() {
@@ -222,7 +222,9 @@ class Exporter {
       const sortedFamilies = Array.from(families).sort((a, b) => a - b);
 
       for (const family of sortedFamilies) {
-        this.append(`    pub mod ${family.toLowerCase()} {\n`);
+        this.append(
+          `    pub mod ${this.getVariableName(family.toLowerCase())} {\n`
+        );
         this.append(`        use super::super::*;\n\n`);
         const packets = this.protocol[`${who}Packets`]
           .filter((p) => p.family === family)
